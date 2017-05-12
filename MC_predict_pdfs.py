@@ -114,10 +114,18 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     #create input PDFS
     Pe = P_e(events_frac)
     Pn = P_n(events_frac)
-    Pbzm_tau_e, norm_bzm_tau_e = P_bzm_tau_e(events_frac, ranges=ranges, nbins=nbins, plotfig = plotting[0])
-    Pbzmp_taup_e, norm_bzmp_taup_e = P_bzmp_taup_e(events_frac, ranges=ranges, nbins=nbins, plotfig = plotting[1])
-    Pbzmp_taup_n, norm_bzmp_taup_n = P_bzmp_taup_n(events_frac, ranges=ranges, nbins=nbins, plotfig=plotting[2])
-    Pbzmp_taup_bzm_tau_e, norm_bzmp_taup_bzm_tau_e, P0, tmpint = P_bzmp_taup_bzm_tau_e(events_frac, ranges=ranges, nbins=nbins, plotfig=plotting[3])
+    
+    Pbzm_tau_e, norm_bzm_tau_e = P_bzm_tau_e(events_frac, ranges=ranges,\
+        nbins=nbins, kernel_width = ew, plotfig = plotting[0])
+    
+    Pbzmp_taup_e, norm_bzmp_taup_e = P_bzmp_taup_e(events_frac, ranges=ranges, \
+        nbins=nbins, kernel_width = ew, plotfig = plotting[1])
+    
+    Pbzmp_taup_n, norm_bzmp_taup_n = P_bzmp_taup_n(events_frac, ranges=ranges,\
+        nbins=nbins, kernel_width = nw, plotfig=plotting[2])
+    
+    Pbzmp_taup_bzm_tau_e, norm_bzmp_taup_bzm_tau_e, P0, tmpint = P_bzmp_taup_bzm_tau_e(events_frac, \
+        ranges=ranges, nbins=nbins, kernel_width = ew, plotfig=plotting[3])
     
     Pbzm_tau_e_bzmp_taup, norm_bzm_tau_e_bzmp_taup, P1, P1_map = P_bzm_tau_e_bzmp_taup(Pe, \
                                                     Pn,\
