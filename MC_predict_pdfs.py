@@ -136,7 +136,6 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
                                                     ranges = ranges, nbins = nbins,\
                                                     plotfig = plotting[4])
     
-    
     #create a dictionary to return PDFs etc
     P_dict = {}
     P_dict["P_e"] = Pe
@@ -156,12 +155,15 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     P_dict["P1"] = P1
     P_dict["P1_map"] = P1_map
     
-    #return Pe, Pn, \ 
-    #    Pbzm_tau_e, norm_bzm_tau_e,\
-    #    Pbzmp_taup_e, norm_bzmp_taup_e, \
-    #    Pbzmp_taup_n, norm_bzmp_taup_n, \
-    #    Pbzmp_taup_bzm_tau_e, norm_bzmp_taup_bzm_tau_e, P0,\
-    #    Pbzm_tau_e_bzmp_taup, norm_bzm_tau_e_bzmp_taup, P1, P1_map
+    #save the input paramters as well
+    P_dict["ew"] = ew
+    P_dict["nw"] = nw
+    P_dict["ranges"] = ranges
+    P_dict["nbins"] = nbins
+    P_dict["kernel_alg"] = kernel_alg
+       
+    #save a pickle file with P_dict
+    pickle.dump(open("Pdict_nw"+str(nw)+"_ew"+str(ew)+".p", "wb"))
     
     return P_dict    
 
@@ -589,7 +591,8 @@ def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
         
     
     """ 
-   
+    
+
     #range of Bzm and tau to define PDFs 
     bmin = ranges[0]
     bmax = ranges[1]
@@ -606,6 +609,7 @@ def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
     
     #kernel smoothing width
     nw = kernel_width
+    
     
     #P_bzmp_taup_n is a function of the fraction of time f throughout an event
     #currently the fit to the data considers every 5th of an event
@@ -864,32 +868,33 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     
     ############## FOLLOWING CODE IS MESSING ABOUT TO GET THE PLANES TO NORM TO 1 #############
 
-     P0_2 = np.zeros((50,50))
-     tmpint = np.zeros((50,50))
-     invtmpint = np.zeros((50,50))
-     P_bzmp_taup_bzm_tau_e2 = np.zeros((50,50,50,50,6))
-     
-     #for i in np.arange(6):
-     for i in [5]:                          #note only calculating final dimension/time step in above code for quickness testing
-         for j in range(50):
-             for k in range(50):
-                 
-                 tmp = P_bzmp_taup_bzm_tau_e[:,:,j,k,i]
-                 tmpint[j,k] = integrate.simps(integrate.simps(tmp, t), b)  
-                 invtmpint[j,k] = 1/tmpint[j,k] 
-                 
-                 P_bzmp_taup_bzm_tau_e2[:,:,j,k,i] = tmp * (1/tmpint[j,k])
-                 
-                 #normalization in each plane - should be 1
-                 P0_2[j,k] = integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e2[:,:,j,k,5],\
-                                t),\
-                                b)  
+    P0_2 = np.zeros((50,50))
+    tmpint = np.zeros((50,50))
+    invtmpint = np.zeros((50,50))
+    P_bzmp_taup_bzm_tau_e2 = np.zeros((50,50,50,50,6))
+    
+    #for i in np.arange(6):
+    for i in [5]:                          #note only calculating final dimension/time step in above code for quickness testing
+        for j in range(50):
+            for k in range(50):
+                
+                tmp = P_bzmp_taup_bzm_tau_e[:,:,j,k,i]
+                tmpint[j,k] = integrate.simps(integrate.simps(tmp, t), b)  
+                invtmpint[j,k] = 1/tmpint[j,k] 
+                
+                P_bzmp_taup_bzm_tau_e2[:,:,j,k,i] = tmp * (1/tmpint[j,k])
+                
+                #normalization in each plane - should be 1
+                P0_2[j,k] = integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e2[:,:,j,k,5],\
+                               t),\
+                               b)  
     #total 4D normalization
     norm_bzmp_taup_bzm_tau_e2 = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e2[:,:,:,:,5],
                                 tp),\
                                 bp), \
                                 t),\
                                 b)
+
 
 #==============================================================================
 #     #normalize each plane
