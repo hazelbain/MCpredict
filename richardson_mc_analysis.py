@@ -204,7 +204,7 @@ def plot_obs_bz_tau(events, outname = 'bzm_vs_tau.pdf'):
     fontP.set_size('medium')                       
                            
                            
-    plt.scatter(events['bzm'].iloc[w_no_geoeff], events['tau'].iloc[w_no_geoeff], c = 'b', label = 'Not Geoeffecive')                         
+    plt.scatter(events['bzm'].iloc[w_no_geoeff], events['tau'].iloc[w_no_geoeff], c = 'b', label = 'Not Geoeffecive' )                         
     plt.scatter(events['bzm'].iloc[w_geoeff], events['tau'].iloc[w_geoeff], c = 'r', label = 'Geoeffective')
     plt.ylim(0,60)
     plt.xlim(-60,60)
@@ -217,6 +217,52 @@ def plot_obs_bz_tau(events, outname = 'bzm_vs_tau.pdf'):
     plt.savefig(outname, format='pdf')
     
     plt.close()
+
+
+def plot_obs_bz_tau_dst(events, outname = 'bzm_vs_tau_vs_dst.pdf'):
+    
+    """
+    Plots the magnetic cloud actual bzm vs tau as a function of dst
+    
+    input
+    
+    events: dataframe
+        dataframe containing events determined from historical data
+    
+    
+    """
+    
+    from matplotlib.font_manager import FontProperties
+        
+    ##plot Bzm vs tau
+    w_geoeff = np.where(events['geoeff'] == 1.0)[0]
+    w_no_geoeff = np.where(events['geoeff'] == 0)[0]
+
+    w_no_ambig = np.where(events['geoeff'] < 2.0)[0]
+                           
+    fontP = FontProperties()                #legend
+    fontP.set_size('medium')                       
+                           
+    c = plt.scatter(events['bzm'].iloc[w_no_ambig], events['tau'].iloc[w_no_ambig], c = events['dst'].iloc[w_no_ambig], label = 'All events' )                       
+    #plt.scatter(events['bzm'].iloc[w_no_geoeff], events['tau'].iloc[w_no_geoeff], c = 'b', label = 'Not Geoeffecive' )                         
+    #plt.scatter(events['bzm'].iloc[w_geoeff], events['tau'].iloc[w_geoeff], c = 'r', label = 'Geoeffective')
+    plt.ylim(0,60)
+    plt.xlim(-60,60)
+    plt.xlabel("$\mathrm{B_{zm}}$ (nT)")
+    plt.ylabel("Duration (hr)")
+    plt.title("Chen events: Bzm vs tau vs Dst (no ambig)")
+    leg = plt.legend(loc='upper right', prop = fontP, fancybox=True, \
+                     frameon=True, scatterpoints = 1 )
+    leg.get_frame().set_alpha(0.5)
+    cbar = plt.colorbar(c, label = "Dst")
+    #cbar.set_label("Dst")   
+    
+    plt.savefig(outname, format='pdf')
+    
+    plt.close()    
+    
+    
+    
     
 def plot_all_Richardson_MC():
 
