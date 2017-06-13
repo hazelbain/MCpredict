@@ -230,14 +230,13 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     ax6.set_xlabel('Bzm_p')
     ax6.set_ylabel('Tau_p')
     ax6.set_title('P1_map, bandwidth = '+str(ew), fontsize = 'small')
-    fig.colorbar(c6, ax = ax6, fraction=0.025)
+    fig.colorbar(c6, ax = ax6, fraction=0.025, format='%2.2f')
     leg6 = ax6.legend(loc='upper right', prop = fontP, fancybox=True)
     leg6.get_frame().set_alpha(0.5)
 
 
-    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/allpdfs_ew'+str(ew)+'_'+str(nw)+'.pdf')
-
-
+    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/allpdfs_ew'+str(ew)+'_nw'+str(nw)+'.pdf')
+    plt.close()
 
     #create a dictionary to return PDFs etc
     P_dict = {}
@@ -266,7 +265,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     P_dict["kernel_alg"] = kernel_alg
        
     #save a pickle file with P_dict
-    #pickle.dump(P_dict, open("C:\Users\hazel.bain\Documents\MC_predict\pyMCpredict\MCpredict\Pdict_ew"+str(ew)+"_nw"+str(nw)+".p", "wb"))
+    pickle.dump(P_dict, open("C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/Pdict_ew"+str(ew)+"_nw"+str(nw)+".p", "wb"))
     
     return P_dict    
 

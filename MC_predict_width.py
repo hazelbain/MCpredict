@@ -37,11 +37,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 
 def adaptive_test(events_frac, kernel_alg = 'scipy_stats', \
                 ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
-                ew = 2, nw = 0.5, plotting=[0,0,0,0,0]):
+                ew = 2, nw = 0.5, ewc = 4, nwc = 0.5, plotting=[0,0,0,0,0], plottype = '2d'):
 
     """
     Create the PDFs for the
@@ -81,18 +82,19 @@ def adaptive_test(events_frac, kernel_alg = 'scipy_stats', \
     
     import MC_predict_pdfs as mc
     
-    #kernel_alg = 'scipy_stats'
-    #ranges = [-80, 80, -150, 150]; nbins = [50j, 100j]
+    kernel_alg = 'scipy_stats'
+    #ranges = [-80, 80, -150, 150]
+    nbins = [50j, 100j]
     #ew = 2; nw = 0.1
     
     Pbzm_tau_e, norm_bzm_tau_e = mc.P_bzm_tau_e(events_frac, ranges=ranges,\
-        nbins=nbins, kernel_width = ew, plotfig = 0)
+        nbins=nbins, kernel_width = ewc, plotfig = 0)
     
     Pbzmp_taup_e, norm_bzmp_taup_e = mc.P_bzmp_taup_e(events_frac, ranges=ranges, \
-        nbins=nbins, kernel_width = ew, plotfig = 0)
+        nbins=nbins, kernel_width = ewc, plotfig = 0)
     
     Pbzmp_taup_n, norm_bzmp_taup_n = mc.P_bzmp_taup_n(events_frac, ranges=ranges,\
-        nbins=nbins, kernel_width = nw, plotfig=0)
+        nbins=nbins, kernel_width = nwc, plotfig=0)
     
     print("max P_bzm_tau_e: "+str(Pbzm_tau_e.max())+", min w_bzm_tau_e: "+str(Pbzm_tau_e.min()))
     print("max P_bzmp_taup_e: "+str(Pbzmp_taup_e.max())+", min w_bzmp_taup_e: "+str(Pbzmp_taup_e.min()))
@@ -109,67 +111,118 @@ def adaptive_test(events_frac, kernel_alg = 'scipy_stats', \
     print("max w_bzmp_taup_n: "+str(w_bzmp_taup_n.max())+", min w_bzmp_taup_n: "+str(w_bzmp_taup_n.min()))
     print("\n")
                
-    fig, (ax1,ax2,ax3) = plt.subplots(1,3,figsize=(15,5))
-    fontP = FontProperties() 
-    fig.tight_layout()
-    plt.subplots_adjust(wspace = 0.25)
+    if plottype == '3d':
     
-    c1 = ax1.imshow(np.rot90(w_bzm_tau_e), extent=(ranges[0],ranges[1],0,ranges[3]), \
-                    cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax1.set_xlim([ranges[0], ranges[1]])
-    ax1.set_ylim([0, ranges[3]])
-    ax1.set_xlabel('Bzm')
-    ax1.set_ylabel('Tau')
-    ax1.set_title('P_bzm_tau_e, bandwidth = '+str(ew), fontsize='small')
-    fig.colorbar(c1, ax = ax1, fraction=0.025)
-    #ax1.legend(loc='upper right', prop = fontP, fancybox=True)
+        fig = plt.figure(figsize=(15,5))
+        ax1 = fig.add_subplot(1, 3, 1, projection='3d')
+        ax2 = fig.add_subplot(1, 3, 2, projection='3d')
+        ax3 = fig.add_subplot(1, 3, 3, projection='3d')
     
-    c2 = ax2.imshow(np.rot90(w_bzmp_taup_e[:,:,5]), extent=(ranges[0],ranges[1],0,ranges[3]), \
-                    cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax2.set_xlim([ranges[0], ranges[1]])
-    ax2.set_ylim([0, ranges[3]])
-    ax2.set_xlabel('Bzm')
-    ax2.set_ylabel('Tau')
-    ax2.set_title('P_bzmp_taup_e, bandwidth = '+str(ew), fontsize='small')
-    fig.colorbar(c2, ax = ax2, fraction=0.025)
-    #ax2.legend(loc='upper right', prop = fontP, fancybox=True)
+        X_bzm, Y_tau = np.mgrid[ranges[0]:ranges[1]:nbins[0], ranges[2]:ranges[3]:nbins[1]]
+        dt0 = int(len(Y_tau[1])/2)
+        b = X_bzm[:,0]
+        t = Y_tau[0,dt0::]
     
-    c3 = ax3.imshow(np.rot90(w_bzmp_taup_n[:,:,5]), extent=(ranges[0],ranges[1],0,ranges[3]), \
-                    cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax3.set_xlim([ranges[0], ranges[1]])
-    ax3.set_ylim([0, ranges[3]])
-    ax3.set_xlabel('Bzm')
-    ax3.set_ylabel('Tau')
-    ax3.set_title('P_bzmp_taup_n, bandwidth = '+str(nw), fontsize='small')
-    fig.colorbar(c3, ax = ax3, fraction=0.025)
-    #ax3.legend(loc='upper right', prop = fontP, fancybox=True)
+        print(X_bzm[:, dt0::].shape)
+        print(Y_tau[:,dt0::].shape)
+        print(w_bzm_tau_e.shape)
+    
+        image = np.random.uniform(low = 0, high = 255,size=(200, 200))
+        #w_bzm_tau_e = image
+        #w_bzmp_taup_e[:,:,5] = image
+        #w_bzmp_taup_n[:,:,5] = image
+    
+        X = np.arange(-5, 5, 0.25)
+        Y = np.arange(-5, 5, 0.25)
+        X, Y = np.meshgrid(X, Y)
+        R = np.sqrt(X**2 + Y**2)
+        Z = np.sin(R)
     
     
-#==============================================================================
-#     #create a dictionary to return PDFs etc
-#     P_dict = {}
-#     P_dict["P_bzm_tau_e"] = Pbzm_tau_e
-#     P_dict["norm_bzm_tau_e"] = norm_bzm_tau_e
-#     P_dict["P_bzmp_taup_e"] = Pbzmp_taup_e
-#     P_dict["norm_bzmp_taup_e"] = norm_bzmp_taup_e
-#     P_dict["P_bzmp_taup_n"] = Pbzmp_taup_n
-#     P_dict["norm_bzmp_taup_n"] = norm_bzmp_taup_n
-# 
-#     
-#     #save the input paramters as well
-#     P_dict["ew"] = ew
-#     P_dict["nw"] = nw
-#     P_dict["ranges"] = ranges
-#     P_dict["nbins"] = nbins
-#     P_dict["kernel_alg"] = kernel_alg
-#        
-#     #save a pickle file with P_dict
-#     pickle.dump(open("Pdict_nw"+str(nw)+"_ew"+str(ew)+".p", "wb"))
-#     
-#     return P_dict    
-#==============================================================================
+        fig.gca(projection='3d')
+        c1 = ax1.plot_surface(X_bzm[:, dt0::],Y_tau[:,dt0::],w_bzm_tau_e,\
+            cmap=plt.cm.coolwarm, linewidth=0, rstride = 2, cstride = 2)
+        ax1.set_xlabel('Bzm')
+        ax1.set_ylabel('Tau')
+        ax1.set_title('P_bzm_tau_e, bandwidth = '+str(nw), fontsize='small')
 
-    return None
+    
+        c2 = ax2.plot_surface(X_bzm[:, dt0::],Y_tau[:,dt0::],w_bzmp_taup_e[:,:,5],\
+            cmap=plt.cm.gist_earth_r, linewidth=0, rstride = 2, cstride = 2)
+        ax2.set_xlabel('Bzm')
+        ax2.set_ylabel('Tau')
+        ax2.set_title('P_bzmp_taup_e, bandwidth = '+str(nw), fontsize='small')
+    
+        c3 = ax3.plot_surface(X_bzm[:, dt0::],Y_tau[:,dt0::],w_bzmp_taup_n[:,:,5],\
+            cmap=plt.cm.gist_earth_r, linewidth=0, rstride = 2, cstride = 2)
+        ax3.set_xlabel('Bzm')
+        ax3.set_ylabel('Tau')
+        ax3.set_title('P_bzmp_taup_n, bandwidth = '+str(nw), fontsize='small')
+    
+    else:
+        
+        fig, (ax1,ax2,ax3) = plt.subplots(1,3,figsize=(15,5))
+        fontP = FontProperties() 
+        fig.tight_layout()
+        plt.subplots_adjust(wspace = 0.25)
+        
+        c1 = ax1.imshow(np.rot90(w_bzm_tau_e), extent=(ranges[0],ranges[1],0,ranges[3]), \
+                        cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax1.set_xlim([ranges[0], ranges[1]])
+        ax1.set_ylim([0, ranges[3]])
+        ax1.set_xlabel('Bzm')
+        ax1.set_ylabel('Tau')
+        ax1.set_title('P_bzm_tau_e, bandwidth = '+str(ew), fontsize='small')
+        fig.colorbar(c1, ax = ax1, fraction=0.025)
+        #ax1.legend(loc='upper right', prop = fontP, fancybox=True)
+        
+        c2 = ax2.imshow(np.rot90(w_bzmp_taup_e[:,:,5]), extent=(ranges[0],ranges[1],0,ranges[3]), \
+                        cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax2.set_xlim([ranges[0], ranges[1]])
+        ax2.set_ylim([0, ranges[3]])
+        ax2.set_xlabel('Bzm')
+        ax2.set_ylabel('Tau')
+        ax2.set_title('P_bzmp_taup_e, bandwidth = '+str(ew), fontsize='small')
+        fig.colorbar(c2, ax = ax2, fraction=0.025)
+        #ax2.legend(loc='upper right', prop = fontP, fancybox=True)
+        
+        c3 = ax3.imshow(np.rot90(w_bzmp_taup_n[:,:,5]), extent=(ranges[0],ranges[1],0,ranges[3]), \
+                        cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax3.set_xlim([ranges[0], ranges[1]])
+        ax3.set_ylim([0, ranges[3]])
+        ax3.set_xlabel('Bzm')
+        ax3.set_ylabel('Tau')
+        ax3.set_title('P_bzmp_taup_n, bandwidth = '+str(nw), fontsize='small')
+        fig.colorbar(c3, ax = ax3, fraction=0.025)
+        #ax3.legend(loc='upper right', prop = fontP, fancybox=True)
+    
+    
+    #create a dictionary to return PDFs etc
+    P_dict = {}
+    P_dict["P_bzm_tau_e"] = Pbzm_tau_e
+    P_dict["norm_bzm_tau_e"] = norm_bzm_tau_e
+    P_dict["w_bzm_tau_e"] = w_bzm_tau_e
+    P_dict["P_bzmp_taup_e"] = Pbzmp_taup_e
+    P_dict["norm_bzmp_taup_e"] = norm_bzmp_taup_e
+    P_dict["w_bzmp_taup_e"] = w_bzmp_taup_e
+    P_dict["P_bzmp_taup_n"] = Pbzmp_taup_n
+    P_dict["norm_bzmp_taup_n"] = norm_bzmp_taup_n
+    P_dict["w_bzmp_taup_n"] = w_bzmp_taup_n
+
+    
+    #save the input paramters as well
+    P_dict["ew"] = ew
+    P_dict["nw"] = nw
+    P_dict["ranges"] = ranges
+    P_dict["nbins"] = nbins
+    P_dict["kernel_alg"] = kernel_alg
+       
+    #save a pickle file with P_dict
+    #pickle.dump(open("Pdict_nw"+str(nw)+"_ew"+str(ew)+".p", "wb"))
+    
+    
+    return P_dict    
+
 
 def calc_width(pdf, w0, geoeff = 1):
     

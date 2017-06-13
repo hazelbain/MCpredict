@@ -55,7 +55,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots/',\
                        line = [], dst_thresh = -80):
 
- """
+    """
      This function reads in either real time or historical 
      solar wind data and determine geoeffective and non geoeffective "events" 
      present in the magnetic field data. An event is defined to be > 120 minutes 
@@ -109,8 +109,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
         each row contains the characteristics for a fraction of each event
 
 
-"""
-
+    """
     #running in real_time mode
     if real_time == 1:
         print("todo: real-time data required - determine dates for last 24 hours")
@@ -137,7 +136,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
         
     elif spacecraft == 'dscovr':
         print("todo: dscovr data read functions still todo")
-        
+    
     #clean data
     mag_clean, sw_clean = clean_data(mag, sw)
     
@@ -542,7 +541,7 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0):
     events - pandas data frame
         each row contains the characteristics for a single event
     
-    """"
+    """
     
     
     #add min Dst value and geoeffective tag for each event
@@ -823,10 +822,10 @@ def predict_duration(data, istart, iend, pdf):
 
         #Using Bayesian statistics laid out in Chen papers, determine the probability 
         #of a geoeffective event given the estimated Bzm and tau
-        bzmp_ind = np.max(np.where(pdf['axis_vals'][2::] < predicted_bzmax)[1])
-        taup_ind = np.min(np.where(pdf['axis_vals'][3::] > predicted_duration)[1]) 
+        #bzmp_ind = np.max(np.where(pdf['axis_vals'][2::] < predicted_bzmax)[1])
+        #taup_ind = np.min(np.where(pdf['axis_vals'][3::] > predicted_duration)[1]) 
         
-        P1 = np.sum(pdf['pdf'][:,:,bzmp_ind, taup_ind])
+        #P1 = np.sum(pdf['pdf'][:,:,bzmp_ind, taup_ind])
 
     
         #fill in rest of data record for remaining portion if what is left is less
