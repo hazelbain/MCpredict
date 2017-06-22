@@ -14,7 +14,7 @@ import numpy.lib.recfunctions
 
 def get_data(tstart, tend, server = 'swds-st', \
              database = 'RA', view = 'ace_mag_1m',\
-             csv = 1, outpath = 'C:/Users/hazel.bain/data/'):
+             livedb = 0, csv = 1,  outpath = 'C:/Users/hazel.bain/data/'):
       
     """
     Checks to see if the data is already stored locally, if not
@@ -45,7 +45,7 @@ def get_data(tstart, tend, server = 'swds-st', \
 
     from datetime import timedelta
     import os
-    
+        
     #convert times to datetime
     st = datetime(int(tstart.split('-')[0]), int(tstart.split('-')[1]), int(tstart.split('-')[2]))
     et = datetime(int(tend.split('-')[0]), int(tend.split('-')[1]), int(tend.split('-')[2]))
@@ -54,38 +54,82 @@ def get_data(tstart, tend, server = 'swds-st', \
     dates_to_check = [st + timedelta(int(i)) for i in np.arange(0,(et-st).days+1)]
     for d in dates_to_check:
         
-        #if there is no datafile for that day, get the data from the databacse
+        #if there is no datafile for that day or livedb is set, get the data from the databacse
         if not os.path.isfile(outpath + '/' + view + '/' + \
-                              view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv'):
+                              view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv') \
+                              or livedb == 1 :
             t = datetime.strftime(d, "%Y-%m-%d")
             
-            print("datafile missing for day " + t + ": accessing databasee")
-            data = read_database(t, t, server = server, \
+            #print("livedb mode or datafile missing for day " + t + ": accessing databasee")
+            data_tmp0 = read_database(t, t, server = server, \
                                  database = database, view=view, \
                                  csv=csv, outpath=outpath+ '/' + view + '/')
             
-    #once all data is stored locally, read from csv file            
-    print("All files stored locally: reading from csv")
+            #parse the data to format
+            if view == 'ace_mag_1m':
+                data_tmp = parse_ace_mag_1m_db(data_tmp0)
+
+            #elif view == 'ace_swepam_1m':
+            elif view == 'tb_ace_sw_1m':    
+                data_tmp = parse_ace_swepam_1m_db(data_tmp0) 
+
+
+        #otherwise read the csv file
+        else:
             
-    if view == 'ace_mag_1m':
-        for f in dates_to_check:
-            file = view + '_' + datetime.strftime(f, "%Y%m%d") + '.csv'
-            if f == dates_to_check[0]:
-                data = read_ace_mag_1m_database_csv(file)
-            else:
+            if view == 'ace_mag_1m':
+                file = view + '_' + datetime.strftime(d, "%Y%m%d") + '.csv'
                 data_tmp = read_ace_mag_1m_database_csv(file)
-                data = np.hstack((data,data_tmp))
-                    
-    elif view == 'ace_swepam_1m':
-        for f in dates_to_check:
-            file = view + '_' + datetime.strftime(f, "%Y%m%d") + '.csv'
-            if f == dates_to_check[0]:
-                data = read_ace_swepam_1m_database_csv(file)
-            else:
-                data_tmp = read_ace_swepam_1m_database_csv(file)
-                data = np.hstack((data,data_tmp))
+
+            #elif view == 'ace_swepam_1m':
+            elif view == 'tb_ace_sw_1m':   
+                file = view + '_' + datetime.strftime(d, "%Y%m%d") + '.csv'
+                data_tmp = read_ace_swepam_1m_database_csv(file) 
         
-    
+        #concatenate the data files
+        if d == dates_to_check[0]:
+            data = data_tmp
+        else:
+            data = np.hstack((data,data_tmp))                
+            
+#==============================================================================
+#     #datafile dates to check for
+#     dates_to_check = [st + timedelta(int(i)) for i in np.arange(0,(et-st).days+1)]
+#     for d in dates_to_check:
+#         
+#         #if there is no datafile for that day, get the data from the databacse
+#         if not os.path.isfile(outpath + '/' + view + '/' + \
+#                               view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv'):
+#             t = datetime.strftime(d, "%Y-%m-%d")
+#             
+#             print("datafile missing for day " + t + ": accessing databasee")
+#             data = read_database(t, t, server = server, \
+#                                  database = database, view=view, \
+#                                  csv=csv, outpath=outpath+ '/' + view + '/')
+#             
+#     #once all data is stored locally, read from csv file            
+#     print("All files stored locally: reading from csv")
+#             
+#     if view == 'ace_mag_1m':
+#         for f in dates_to_check:
+#             file = view + '_' + datetime.strftime(f, "%Y%m%d") + '.csv'
+#             if f == dates_to_check[0]:
+#                 data = read_ace_mag_1m_database_csv(file)
+#             else:
+#                 data_tmp = read_ace_mag_1m_database_csv(file)
+#                 data = np.hstack((data,data_tmp))
+#                     
+#     #elif view == 'ace_swepam_1m':
+#     elif view == 'tb_ace_sw_1m':    
+#         for f in dates_to_check:
+#             file = view + '_' + datetime.strftime(f, "%Y%m%d") + '.csv'
+#             if f == dates_to_check[0]:
+#                 data = read_ace_swepam_1m_database_csv(file)
+#             else:
+#                 data_tmp = read_ace_swepam_1m_database_csv(file)
+#                 data = np.hstack((data,data_tmp))
+#==============================================================================
+        
     return data
 
 def read_database(tstart, tend, server = 'swds-st', \
@@ -233,7 +277,7 @@ def database2csv(data, file, path, days = 1):
                 writer.writerow(line)
         csv_file.close()
 
-        print("saved data to csv file")
+        #print("saved data to csv file")
         
     
     return None
@@ -271,7 +315,7 @@ def read_ace_mag_1m_database_csv(file, path = 'C:/Users/hazel.bain/data/ace_mag_
     #read the file
     indata = np.loadtxt(path + file, dtype = {'names': col_name, \
         'formats': col_fmt},delimiter = ',', skiprows=1)
-   
+    
     #change Null data to None
     data = np.copy(indata)
     
@@ -299,7 +343,7 @@ def read_ace_mag_1m_database_csv(file, path = 'C:/Users/hazel.bain/data/ace_mag_
 
     return data
     
-def read_ace_swepam_1m_database_csv(file, path = 'C:/Users/hazel.bain/data/ace_swepam_1m/'):    
+def read_ace_swepam_1m_database_csv(file, path = 'C:/Users/hazel.bain/data/tb_ace_sw_1m/'):    
 
     
     """
@@ -323,23 +367,25 @@ def read_ace_swepam_1m_database_csv(file, path = 'C:/Users/hazel.bain/data/ace_s
     #file = 'swepam_test.csv'
 
     #Richardson and Cane spreedsheet column names and format
-    col_name =  ('time_tag', 'dsflag', 'n', 'v', 't')
-    col_fmt = ('S30', '|S10', '|S10', '|S10', '|S10')
+    col_name =  ('time_tag', 'insert_time', 'dsflag', 'n', 'v', 't', 'vx',\
+                 'vy', 'vz', 'err')
+    col_fmt = ('S30', 'S30', '|S10', '|S10', '|S10', '|S10', '|S10', '|S10',\
+               '|S10', '|S10')
 
     #read the file
     indata = np.loadtxt(path + file, dtype = {'names': col_name, \
         'formats': col_fmt},delimiter = ',', skiprows=1)
-   
+
     #change Null data to None
     data = np.copy(indata)
-    
+
     data['dsflag'][np.where(data['dsflag'] == b'NULL')] = 999
     data['n'][np.where(data['n'] == b'NULL')] = np.nan
     data['v'][np.where(data['v'] == b'NULL')] = np.nan
     data['t'][np.where(data['t'] == b'NULL')] = np.nan
 
     #convert values to float   
-    col_fmt_new = ('S30', 'i4', 'f4', 'f4', 'f4')
+    col_fmt_new = ('S30', 'S30', 'i4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'i4')
     data = data.astype({'names':col_name, 'formats':col_fmt_new})
     
     #append a new column which converts time tag to datetime    
@@ -354,3 +400,68 @@ def read_ace_swepam_1m_database_csv(file, path = 'C:/Users/hazel.bain/data/ace_s
     data = numpy.lib.recfunctions.append_fields(data, 'date', date_temp, dtypes='datetime64[us]', usemask=False, asrecarray=True)
 
     return data    
+
+
+def parse_ace_mag_1m_db(indata):    
+
+    
+    """
+    parses ace_mag_1m data from from RA database
+    
+    Parameters
+    ----------
+    file : string, required 
+        CSV file containing the ace_mag_1m data to read.
+    dir: string, optional 
+        path to csv file. Default is MCpredict folder
+
+
+    Returns
+    -------
+    data : ndarray
+        Array of data from database
+    
+    """
+
+    data = np.copy(indata)
+    
+    #append a new column which converts time tag to datetime    
+    date_temp = indata['time_tag']
+    
+    data = numpy.lib.recfunctions.append_fields(data, 'date', date_temp, dtypes='datetime64[us]', usemask=False, asrecarray=True)
+
+    return data
+    
+def parse_ace_swepam_1m_db(indata):    
+
+    
+    """
+    Parse ace_swepam_1m data from RA database
+    
+    Parameters
+    ----------
+    file : string, required 
+        CSV file containing the ace_swepam_1m data to read.
+    path: string, optional 
+        path to csv file. Default is MCpredict folder
+
+
+    Returns
+    -------
+    data : ndarray
+        Array of data from database
+    
+    """
+   
+    #change Null data to None
+    data = np.copy(indata)
+    data['dsflag'][np.where(data['dsflag'] == np.nan)] = 999
+
+    #append a new column which converts time tag to datetime    
+    date_temp = data['time_tag']
+    data = numpy.lib.recfunctions.append_fields(data, 'date', date_temp, dtypes='datetime64[us]', usemask=False, asrecarray=True)
+
+
+    return data   
+
+

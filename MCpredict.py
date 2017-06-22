@@ -51,6 +51,7 @@ from datetime import timedelta
 
 def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir='', \
                        real_time = 0, spacecraft = 'ace',\
+                       csv = 1, livedb = 0,\
                        plotting = 1, plt_outfile = 'mcpredict.pdf',\
                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots/',\
                        line = [], dst_thresh = -80):
@@ -85,6 +86,10 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
          set to 1 to use real time data
      spacecraft - string
          which spacecraft to get the data from "ace" or "dscvr"
+     csv - int
+         save the data to local csv file
+     livedb - int
+         read directly from the database
      plotting - int
          set to 1 to output plots
      plt_outfile - string
@@ -120,20 +125,23 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
     #min_duration of at least 120 minutes in order to be considered as an event
     min_duration=120.
     
+
     #read in mag and solar wind data
     if spacecraft == 'ace':
         
         #read in ace_mag_1m data
-        mag_data = get_data(sdate, edate, view = 'ace_mag_1m')
+        mag_data = get_data(sdate, edate, view = 'ace_mag_1m', \
+                            csv = csv, livedb = livedb)
         
-        sw_data = get_data(sdate, edate, view = 'ace_swepam_1m')
+        sw_data = get_data(sdate, edate, view = 'tb_ace_sw_1m', \
+                           csv = csv, livedb = livedb)
         
         #convert to pandas DataFrame
         #MAYBE MOVE THIS STEP INTO THE GET DATA FUNCTION!!!!
         mag = pd.DataFrame(data = mag_data, columns = mag_data.dtype.names)
-        sw = pd.DataFrame(data = sw_data, columns = sw_data.dtype.names)
-        
-        
+        sw = pd.DataFrame(data = sw_data, columns = sw_data.dtype.names)  
+        sw.rename(columns={'dens': 'n', 'speed': 'v', 'temperature':'t'}, inplace=True)
+           
     elif spacecraft == 'dscovr':
         print("todo: dscovr data read functions still todo")
     
@@ -147,7 +155,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
             pd.Series(mag_clean['gsm_by']).rolling(window = smooth_num).mean(),\
             pd.Series(mag_clean['gsm_bz']).rolling(window = smooth_num).mean(), \
             pd.Series(mag_clean['bt']).rolling(window = smooth_num).mean()], axis=1, keys = col_names)
-    
+       
     data['theta_z'] = pd.Series(180.*np.arcsin(mag_clean['gsm_bz']/mag_clean['bt'])/np.pi)\
                         .rolling(window = smooth_num).mean()   #in degrees
     data['theta_y'] = pd.Series(180.*np.arcsin(mag_clean['gsm_by']/mag_clean['bt'])/np.pi)\
@@ -164,7 +172,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
     data['bzm_predicted'] = 0
     data['i_bzmax'] = 0
     data['bzm_actual'] = 0
-    
+       
     #Incrementally step through the data and look for mc events.
     #An event is defined as the time bounded by sign changes of Bz.
     #An event needs to have a min_durtaion of min_duration.
@@ -220,7 +228,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
     
     #create new dataframe to record event characteristics
     events, events_frac = create_event_dataframe(data, dst_data)
-        
+    
     #plot some stuff   
     if plotting == 1:
         evt_times = events[['start','end']].values
@@ -924,10 +932,14 @@ def clean_data(mag, sw):
     None
     
     """
+
+    #print(mag['gsm_bz'])
     
     nevents_sw = len(sw['v'])
     nevents_mag = len(mag['gsm_bz'])
     
+    
+    #print(nevents_mag)
     
     #---check them magnetic field data
     bad_mag = np.where((abs(mag['gsm_bx']) > 90.) & (abs(mag['gsm_by']) > 90.) & (abs(mag['gsm_bz']) > 90.))
@@ -954,7 +966,6 @@ def clean_data(mag, sw):
     mag['bt']     = mag['bt'].interpolate()
     mag['gsm_lat'] = mag['gsm_lat'].interpolate()
     mag['gsm_lon'] = mag['gsm_lon'].interpolate()
-    
     
     #---check solar wind velocity
     badsw_v = np.where((sw['v'] < 0.) & (sw['v'] > 3000.))
@@ -986,7 +997,6 @@ def clean_data(mag, sw):
             sw['n'][badsw_n[0]] = np.nan
     
     sw['n'] = sw['n'].interpolate()
-
             
     #---check solar wind temperature which can be good even where the velocity was good
     badsw_t = np.where(sw['t'] < 0.) 
@@ -1003,13 +1013,14 @@ def clean_data(mag, sw):
 
     sw['t'] = sw['t'].interpolate()
         
-            
+    #print(len(sw))        
 
     #---interpolate the solar wind velocity to the mag time
     #SWVel=INTERPOL(swe.Speed,swe.jdate,mag.jdate)
     #Np=INTERPOL(swe.Np,swe.jdate,mag.jdate)
     
     #return SWVel, Np  -----QUERY????
+
     
     return mag, sw
     
