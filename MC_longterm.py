@@ -25,6 +25,8 @@ import calendar
 
 import matplotlib.pyplot as plt
 
+import sys
+
 def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0):
 
     #format times
@@ -46,9 +48,12 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0):
         for y in (np.arange(end_date.month - start_date.month + 1)+start_date.month):
             for x in cal.monthdatescalendar(start_date.year, y):
                 date_list.append([x[0], x[0]+timedelta(days = 8)])
-    
-    
-        print(date_list)
+        date_list = np.asarray(date_list)
+        
+        #print(start_date.month, end_date.month)   
+        #print(np.arange(end_date.month - start_date.month + 1)+start_date.month)
+        #print(date_list)
+      
     
         #get the ace_mag_1m and ace_swepam_1m data for these events
         events = pd.DataFrame()             #observational event characteristics for all MCs
@@ -57,32 +62,34 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0):
         for i in range(0,len(date_list)):
                     
             #get mc times +/- 24 hours
-            st = date_list[i][0]
-            et = date_list[i][1]
+            st = datetime.combine(date_list[i,0], datetime.min.time())
+            et = datetime.combine(date_list[i,1], datetime.min.time())
             
-            #format time strings
-            stf = datetime.strftime(st, "%Y-%m-%d")
-            etf = datetime.strftime(et, "%Y-%m-%d")
-            
-            try:
-               
-                pdf = np.zeros((50,50,50,50))
+            if st >= start_date - timedelta(days = 7) and st <= end_date:
                 
-                data, events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
-                    dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
-                    csv = csv, livedb = livedb, \
-                    smooth_num = 100, plotting = plotting,\
-                    plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                    plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm/')
+                #format time strings
+                stf = datetime.strftime(st, "%Y-%m-%d")
+                etf = datetime.strftime(et, "%Y-%m-%d")
                 
-                events = events.append(events_tmp)
-                events_frac = events_frac.append(events_frac_tmp)
-
-                
-            except:
-                print("*** Error getting data ***")
-                errpredict.append(i)
-                
+                try:
+                   
+                    pdf = np.zeros((50,50,50,50))
+                    
+                    data, events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
+                        dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
+                        csv = csv, livedb = livedb, \
+                        smooth_num = 100, plotting = plotting,\
+                        plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
+                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm/')
+                    
+                    events = events.append(events_tmp)
+                    events_frac = events_frac.append(events_frac_tmp)
+    
+                    
+                except:
+                    print("*** Error getting data ***")
+                    errpredict.append(i)
+                    
                 
     
         events = events.reset_index() 

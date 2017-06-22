@@ -115,6 +115,9 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
 
 
     """
+    
+    import math
+    
     #running in real_time mode
     if real_time == 1:
         print("todo: real-time data required - determine dates for last 24 hours")
@@ -147,7 +150,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
     
     #clean data
     mag_clean, sw_clean = clean_data(mag, sw)
-    
+        
     #Create stucture to hold smoothed data
     col_names = ['date', 'bx', 'by', 'bz', 'bt']        
     data = pd.concat([mag_clean['date'], \
@@ -160,6 +163,9 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
                         .rolling(window = smooth_num).mean()   #in degrees
     data['theta_y'] = pd.Series(180.*np.arcsin(mag_clean['gsm_by']/mag_clean['bt'])/np.pi)\
                         .rolling(window = smooth_num).mean()   #in degrees
+                        
+    data['theta_z'] = data['theta_z'].interpolate()      
+    data['theta_y'] = data['theta_y'].interpolate()                    
 
     data['sw_v'] = pd.Series(sw_clean['v']).rolling(window = smooth_num).mean()
     data['sw_n'] = pd.Series(sw_clean['n']).rolling(window = smooth_num).mean()    
@@ -189,7 +195,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
         
         #check for bz sign change to signal end of an event, if not
         #move on to next data step
-        
+                
         if not event_end(data, i):
             continue 
         
@@ -223,8 +229,6 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
         
         if icme_event(istart, iend, len(data['date'])):
             validation_stats, data, resultsdir, istart, iend
-    
-
     
     #create new dataframe to record event characteristics
     events, events_frac = create_event_dataframe(data, dst_data)
@@ -781,9 +785,9 @@ def predict_duration(data, istart, iend, pdf):
         dtheta = theta_max - theta_start
         dduration = i_thetamax - istart
         rate_of_rotation = dtheta/dduration      #in degrees/minutes
-        
+          
         predicted_duration = abs(180./rate_of_rotation)/60.           #in hours
-                
+
         #current_dtheta = theta_current - theta_prev_step
         #current_duration = step
         #current_rate_of_rotation = current_dtheta/current_duration
@@ -812,11 +816,12 @@ def predict_duration(data, istart, iend, pdf):
                            
         if np.abs(predicted_bzmax) > 30.:
             predicted_bzmax = bz_max 
+
         
         data.loc[i-step:i, 'istart'] = istart
         data.loc[i-step:i, 'iend'] = iend   
-            
         data.loc[i-step:i, 'tau_predicted'] = predicted_duration    #[0][0]
+        
         data.loc[i-step:i, 'tau_actual'] = (iend-istart)/60.
         data.loc[i-step:i, 'bzm_predicted'] = predicted_bzmax
 
@@ -834,7 +839,6 @@ def predict_duration(data, istart, iend, pdf):
         #taup_ind = np.min(np.where(pdf['axis_vals'][3::] > predicted_duration)[1]) 
         
         #P1 = np.sum(pdf['pdf'][:,:,bzmp_ind, taup_ind])
-
     
         #fill in rest of data record for remaining portion if what is left is less
         #than one step size
@@ -848,7 +852,7 @@ def predict_duration(data, istart, iend, pdf):
 
         #if (i_thetamax > i-step): data['duration_actual'] = 0.
         #;if (i_bzmax > i-step): data['bzm_actual'] = 0.
-    
+
 
 def value_increasing(value_current, value_max):
     """
