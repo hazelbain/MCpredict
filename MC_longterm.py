@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 
 import sys
 
-def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0):
+def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0, ew = 2, nw = 1):
 
     #format times
     start_date = datetime.strptime(start_date, "%d-%b-%Y")

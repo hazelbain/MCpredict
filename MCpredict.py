@@ -225,8 +225,8 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
         #print('start date: ' + start_date + '\n')
         
         #now try and predict the duration
-        predict_duration(data, istart, iend, pdf)
-        
+        predict_duration(data, istart, iend)
+
         if icme_event(istart, iend, len(data['date'])):
             validation_stats, data, resultsdir, istart, iend
     
@@ -727,7 +727,7 @@ def icme_event(istart, iend, npts):
 
     
 
-def predict_duration(data, istart, iend, pdf):
+def predict_duration(data, istart, iend):
     
     """
     The original version of this code is from Jim Chen and Nick Arge
@@ -833,12 +833,7 @@ def predict_duration(data, istart, iend, pdf):
         index_bz_max_val = np.where(abs(bz[istart:iend]) == bz_max_val)
         data.loc[i-step:i, 'bzm_actual'] = bz.loc[istart + index_bz_max_val[0]].values         
 
-        #Using Bayesian statistics laid out in Chen papers, determine the probability 
-        #of a geoeffective event given the estimated Bzm and tau
-        #bzmp_ind = np.max(np.where(pdf['axis_vals'][2::] < predicted_bzmax)[1])
-        #taup_ind = np.min(np.where(pdf['axis_vals'][3::] > predicted_duration)[1]) 
-        
-        #P1 = np.sum(pdf['pdf'][:,:,bzmp_ind, taup_ind])
+
     
         #fill in rest of data record for remaining portion if what is left is less
         #than one step size
@@ -852,6 +847,30 @@ def predict_duration(data, istart, iend, pdf):
 
         #if (i_thetamax > i-step): data['duration_actual'] = 0.
         #;if (i_bzmax > i-step): data['bzm_actual'] = 0.
+
+def predict_duration(data, istart, iend):
+    
+    """
+   
+    Parameters
+    ----------
+    data: dataframe, required 
+        
+    pdf: n x n x n x n x f matrix, required
+
+    Returns
+    -------
+    None
+    
+    """   
+
+    #Using Bayesian statistics laid out in Chen papers, determine the probability 
+    #of a geoeffective event given the estimated Bzm and tau
+    #bzmp_ind = np.max(np.where(pdf['axis_vals'][2::] < predicted_bzmax)[1])
+    #taup_ind = np.min(np.where(pdf['axis_vals'][3::] > predicted_duration)[1]) 
+        
+    #P1 = np.sum(pdf['pdf'][:,:,bzmp_ind, taup_ind])
+
 
 
 def value_increasing(value_current, value_max):
