@@ -27,7 +27,8 @@ import matplotlib.pyplot as plt
 
 import sys
 
-def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0, ew = 2, nw = 1):
+def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0, 
+                ew = 2, nw = 1, pdf = np.zeros((50,50,50,50))):
 
     #format times
     start_date = datetime.strptime(start_date, "%d-%b-%Y")
@@ -72,12 +73,10 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0, ew = 2,
                 etf = datetime.strftime(et, "%Y-%m-%d")
                 
                 try:
-                   
-                    pdf = np.zeros((50,50,50,50))
-                    
+                                       
                     data, events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
                         dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
-                        csv = csv, livedb = livedb, \
+                        csv = csv, livedb = livedb, predict = 0,\
                         smooth_num = 100, plotting = plotting,\
                         plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
                         plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm/')
@@ -87,7 +86,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0, ew = 2,
     
                     
                 except:
-                    print("*** Error getting data ***")
+                    print("*** Error running Chen MC Prediction ***")
                     errpredict.append(i)
                     
                 

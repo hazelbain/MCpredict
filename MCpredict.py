@@ -49,7 +49,8 @@ import pandas as pd
 from datetime import datetime
 from datetime import timedelta
 
-def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir='', \
+def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
+                       smooth_num = 25, resultsdir='', \
                        real_time = 0, spacecraft = 'ace',\
                        csv = 1, livedb = 0,\
                        plotting = 1, plt_outfile = 'mcpredict.pdf',\
@@ -78,6 +79,8 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
          dst hourly data
      pdf - data array
          PDF relating Bzm and tau to Bzm' and tau' - see MC_predict_pdfs.py
+     predict - int
+         keyword to predict the geoeffectiveness of all events
      smooth_num - int
          temporal smoothing parameter, default = 25
      resultsdir - string
@@ -231,7 +234,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
             validation_stats, data, resultsdir, istart, iend
     
     #create new dataframe to record event characteristics
-    events, events_frac = create_event_dataframe(data, dst_data)
+    events, events_frac = create_event_dataframe(data, dst_data, pdf, predict = predict)
     
     #plot some stuff   
     if plotting == 1:
@@ -242,7 +245,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, smooth_num = 25, resultsdir=
 
 
 
-def create_event_dataframe(data, dst_data, t_frac = 5):
+def create_event_dataframe(data, dst_data, pdf, t_frac = 5, predict = 0):
 
     """
     Create two dataframes containing the characteristics for 
@@ -257,6 +260,8 @@ def create_event_dataframe(data, dst_data, t_frac = 5):
     dst_data - dataframe
         contains hourly dst data to use as a classifier to determine whether the
         event is geoeffective or non geoeffective and recored the max/min value
+    pdf - data array
+        [bzm, tau, bzm_p, tau_p, frac] P(bzm, tau | (bzm_p, tau_p), f)
     t_frac - int
         number of fractions to split an event into - using 5 for development 
         purposes but should be larger
@@ -271,8 +276,7 @@ def create_event_dataframe(data, dst_data, t_frac = 5):
         each row contains the characteristics for a fraction of each event
 
     """
-    
-    
+
     #start and end times for each event
     #evt_times, evt_indices = find_event_times(data)
     evt_indices = np.transpose(np.array([data['istart'].drop_duplicates().values[1::], \
@@ -289,7 +293,7 @@ def create_event_dataframe(data, dst_data, t_frac = 5):
 
     #get min dst and geoeffective flags
     events = dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0)
-    
+
     #split the event into fractions for bayesian stats
     events_frac = events.loc[np.repeat(events.index.values, t_frac+1)]
     events_frac.reset_index(inplace=True)
@@ -302,7 +306,7 @@ def create_event_dataframe(data, dst_data, t_frac = 5):
                             'tau_predicted':0.0,\
                             'i_bzmax':0})
     
-    events_frac = pd.concat([events_frac, frac], axis = 1)  
+    events_frac = pd.concat([events_frac, frac], axis = 1) 
     
     ##bzm at each fraction of an event
     for i in range(len(evt_indices)):
@@ -314,8 +318,10 @@ def create_event_dataframe(data, dst_data, t_frac = 5):
         events_frac['bzm_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bzm_predicted'].iloc[frac_ind].values
         events_frac['tau_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted'].iloc[frac_ind].values
         events_frac['i_bzmax'].iloc[np.where(events_frac['evt_index'] == i)] = data['i_bzmax'].iloc[frac_ind].values
-        
-
+           
+    if predict == 1:
+        #predict geoeffectivenes
+        events_frac = predict_geoeff(events_frac, pdf)
 
     return events, events_frac
     
@@ -848,7 +854,7 @@ def predict_duration(data, istart, iend):
         #if (i_thetamax > i-step): data['duration_actual'] = 0.
         #;if (i_bzmax > i-step): data['bzm_actual'] = 0.
 
-def predict_duration(data, istart, iend):
+def predict_geoeff(events_frac, pdf):
     
     """
    
@@ -866,12 +872,57 @@ def predict_duration(data, istart, iend):
 
     #Using Bayesian statistics laid out in Chen papers, determine the probability 
     #of a geoeffective event given the estimated Bzm and tau
-    #bzmp_ind = np.max(np.where(pdf['axis_vals'][2::] < predicted_bzmax)[1])
-    #taup_ind = np.min(np.where(pdf['axis_vals'][3::] > predicted_duration)[1]) 
+    
+    predict = pd.DataFrame({'bzmp_ind':[], 'taup_ind':[], 'P1':[], 'P1':[], \
+                            'bzm_most_prob':[], 'tau_most_prob':[], 'P3':[]})
+    for i in range(len(events_frac)):
+    
+        #find the plane of probabilities for estimates bzmp and taup
+        predict.bzm_ind.iloc[i] = np.max(np.where(pdf['axis_vals'][0] < events_frac.bzm_predicted.iloc[i])[1])
+        predict.taup_ind.iloc[i] = np.min(np.where(pdf['axis_vals'][1] > events_frac.tau_predicted.iloc[i])[1])
         
-    #P1 = np.sum(pdf['pdf'][:,:,bzmp_ind, taup_ind])
+        #the probability of the event being geoeffective with any value of bzm and tau
+        #predict.P1.iloc[i] = pdf['P1_map'][bzmp_ind, taup_ind, events_frac.iloc[i]*5]
+        predict.P1.iloc[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind, taup_ind, int(events_frac.frac.iloc[i] * 5)], \
+                       axis_vals[1]),\
+                       axis_vals[0])
+        
+        
+        #the probability of the event have actual values bzmp +/- 5 nT and taup +/- 4 hours
+        bzm_ind_low = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] - 5.0)[1]))
+        bzm_ind_high = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] + 5.0)[1]))
+        
+        tau_ind_low = np.min(np.where(pdf['axis_vals'][1] > events_frac.tau_predicted.iloc[i] - 6.0)[1])
+        tau_ind_high = np.min(np.where(pdf['axis_vals'][1] > events_frac.tau_predicted.iloc[i] + 6.0)[1])
+        
+        predict.P2.iloc[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
+                       [:,:,bzmp_ind_low:bzmp_ind_high, taup_ind_low:tau_ind_high, int(events_frac.frac.iloc[i] * 5)],\
+                       axis_vals[1]),\
+                       axis_vals[0])
 
 
+        #The most probable values of bzm and tau based on bzmp and taup  
+        prob_max_ind = np.where(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind, taup_ind, int(events_frac.frac.iloc[i] * 5)] == 
+                 np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind, taup_ind, int(events_frac.frac.iloc[i] * 5)]) ) 
+        
+        predict.bzm_most_prob.iloc[i] = axis_vals[0, prob_max_ind[0][0]]
+        predict.tau_most_prob.iloc[i] = axis_vals[1, prob_max_ind[1][0]]
+        
+        bzm_prob_max_ind_low = np.max(np.where(pdf['axis_vals'][0] < predict.bzm_most_prob.iloc[i] - 5.0)[1])
+        bzm_prob_max_ind_high = np.max(np.where(pdf['axis_vals'][0] < predict.bzm_most_prob.iloc[i] + 5.0)[1])
+        
+        tau_prob_max_ind_low = np.max(np.where(pdf['axis_vals'][1] < axis_vals[1, predict.tau_most_prob.iloc[i]] - 6.0)[1])
+        tau_prob_max_ind_high = np.max(np.where(pdf['axis_vals'][1] < axis_vals[1, predict.tau_most_prob.iloc[i]] + 6.0)[1])
+        
+        predict.P3.iloc[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
+                       [:,:,bzm_prob_max_ind_low:bzm_prob_max_ind_high, tau_prob_max_ind_low:tau_prob_max_ind_high, int(events_frac.frac.iloc[i] * 5)],\
+                       axis_vals[1]),\
+                       axis_vals[0])
+
+    #add new predictions to events_frac datafram
+    events_frac = pd.concat([events, predict], axis = 1)  
+    
+    return events_frac
 
 def value_increasing(value_current, value_max):
     """

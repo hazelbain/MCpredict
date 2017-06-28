@@ -50,7 +50,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
                 ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
-                ew = 2, nw = 0.5, plotting=[0,0,0,0,0], ):
+                ew = 2, nw = 0.5, plotting=[0,0,0,0,0], fname='' ):
 
     """
     Create the PDFs for the
@@ -127,7 +127,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     Pbzmp_taup_bzm_tau_e, norm_bzmp_taup_bzm_tau_e, P0, tmpint, indices = P_bzmp_taup_bzm_tau_e(events_frac, \
         ranges=ranges, nbins=nbins, kernel_width = ew, plotfig=plotting[3])
     
-    Pbzm_tau_e_bzmp_taup, norm_bzm_tau_e_bzmp_taup, P1, P1_map = P_bzm_tau_e_bzmp_taup(Pe, \
+    Pbzm_tau_e_bzmp_taup, norm_bzm_tau_e_bzmp_taup, P1, P1_map, axis_vals = P_bzm_tau_e_bzmp_taup(Pe, \
                                                     Pn,\
                                                     Pbzm_tau_e, \
                                                     Pbzmp_taup_e,\
@@ -222,7 +222,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     leg5 = ax5.legend(loc='upper right', prop = fontP, fancybox=True)
     leg5.get_frame().set_alpha(0.5)
 
-    c6 = ax6.imshow(np.rot90(P1_map), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+    c6 = ax6.imshow(np.rot90(P1_map[:,:,5]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
     ax6.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 0')
     ax6.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
     ax6.set_xlim([ranges[0], ranges[1]])
@@ -235,7 +235,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     leg6.get_frame().set_alpha(0.5)
 
 
-    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/allpdfs_ew'+str(ew)+'_nw'+str(nw)+'.pdf')
+    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/allpdfs_ew'+str(ew)+'_nw'+str(nw)+fname+'.pdf')
     plt.close()
 
     #create a dictionary to return PDFs etc
@@ -254,6 +254,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     P_dict["tmpint"] =tmpint
     P_dict["P_bzm_tau_e_bzmp_taup"] = Pbzm_tau_e_bzmp_taup
     P_dict["norm_bzm_tau_e_bzmp_taup"] = norm_bzm_tau_e_bzmp_taup
+    P_dict["axis_vals"] = axis_vals
     P_dict["P1"] = P1
     P_dict["P1_map"] = P1_map
     
@@ -265,7 +266,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     P_dict["kernel_alg"] = kernel_alg
        
     #save a pickle file with P_dict
-    pickle.dump(P_dict, open("C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/Pdict_ew"+str(ew)+"_nw"+str(nw)+".p", "wb"))
+    pickle.dump(P_dict, open("C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/Pdict_ew"+str(ew)+"_nw"+str(nw)+fname+".p", "wb"))
     
     return P_dict    
 
@@ -876,6 +877,7 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     #currently the fit to the data considers every 5th of an event 
     Ptmp_bzmp_taup_bzm_tau_e = np.zeros((db2,dt2,db2,dt2,6))
     #for i in np.arange(6)*0.2:
+    # TODO:
     for i in [1.0]: 
         
         #extract raw data points from dataframe of estimates bzm' and tau' for 
@@ -1155,6 +1157,9 @@ def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
     tp = Y_taup[0,dt0::,0,0]
     b = XX_bzm[0,0,:,0]
     t = YY_tau[0,0,0,dt0::]
+    
+    axis_vals = np.array([bp,tp,b,t])
+    
 
     norm_bzm_tau_e_bzmp_taup = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzm_tau_e_bzmp_taup[:,:,:,:,5],\
                                 tp),\
@@ -1176,14 +1181,14 @@ def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
                                 b)
 
     #map of P1 for all planes
-    P1_map = np.zeros((db2,db2))
+    P1_map = np.zeros((db2,db2,6))
 
-    
-    for j in range(db2):
-        for k in range(db2):
-            P1_map[j,k] = integrate.simps(integrate.simps(P_bzm_tau_e_bzmp_taup[:,:,j,k,5],\
-                                t),\
-                                b)
+    for i in range(6):
+        for j in range(db2):
+            for k in range(db2):
+                P1_map[j,k,i] = integrate.simps(integrate.simps(P_bzm_tau_e_bzmp_taup[:,:,j,k,i],\
+                                    t),\
+                                    b)
     
     print('\n\n Normalization for P_bzm_tau_e_bzmp_taup: ' + str(norm_bzm_tau_e_bzmp_taup) )
     print('\n Normalization for P_bzm_tau_e_bzmp_taup plane Bzmp =-26nT, taup = 15 hrs, frac = 1.0: ' \
@@ -1205,4 +1210,4 @@ def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
         fig.colorbar(c)
 
 
-    return P_bzm_tau_e_bzmp_taup, norm_bzm_tau_e_bzmp_taup, P1, P1_map    
+    return P_bzm_tau_e_bzmp_taup, norm_bzm_tau_e_bzmp_taup, P1, P1_map, axis_vals   
