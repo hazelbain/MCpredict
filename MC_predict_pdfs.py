@@ -235,7 +235,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     leg6.get_frame().set_alpha(0.5)
 
 
-    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/allpdfs_ew'+str(ew)+'_nw'+str(nw)+fname+'.pdf')
+    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/allpdfs_ew'+str(ew)+'_nw'+str(nw)+"_"+fname+'.pdf')
     plt.close()
 
     #create a dictionary to return PDFs etc
@@ -266,7 +266,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     P_dict["kernel_alg"] = kernel_alg
        
     #save a pickle file with P_dict
-    pickle.dump(P_dict, open("C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/Pdict_ew"+str(ew)+"_nw"+str(nw)+fname+".p", "wb"))
+    pickle.dump(P_dict, open("C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/Pdict_ew"+str(ew)+"_nw"+str(nw)+"_"+fname+".p", "wb"))
     
     return P_dict    
 
@@ -876,9 +876,9 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     #P_bzmp_taup_bzm_tau_e is a function of the fraction of time f throughout an event
     #currently the fit to the data considers every 5th of an event 
     Ptmp_bzmp_taup_bzm_tau_e = np.zeros((db2,dt2,db2,dt2,6))
-    #for i in np.arange(6)*0.2:
+    for i in np.arange(6)*0.2:
     # TODO:
-    for i in [1.0]: 
+    #for i in [1.0]: 
         
         #extract raw data points from dataframe of estimates bzm' and tau' for 
         #fraction f throughout eoeffective events

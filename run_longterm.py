@@ -53,6 +53,9 @@ pdf = mcp.create_pdfs(events_frac, fname='1998_2004' )
 #### step 3: Use the generate PDFs to predict the geoeffectiveness of events
 #### in the remainder of the data set
 
+
+pdf = pickle.load(open("Pdict_ew2_nw0.51998_2004.p","rb"))
+
 t1 = ['1-jan-2004','1-jan-2005',\
       '1-jan-2006','1-jan-2007','1-jan-2008','1-jan-2009','1-jan-2010','1-jan-2011','1-jan-2012','1-jan-2013',\
       '1-jan-2014','1-jan-2015','1-jan-2016','1-jan-2017']
@@ -60,15 +63,19 @@ t2 = ['31-dec-2004','31-dec-2005',\
       '31-dec-2006','31-dec-2007','31-dec-2008','31-dec-2009','31-dec-2010','31-dec-2011','31-dec-2012','31-dec-2013',
       '31-dec-2014','31-dec-2015','31-dec-2016','31-may-2017']
 
+
+#t1 = ['1-jan-2005']
+#t2 = ['14-jan-2005']
+
 events_predict = pd.DataFrame()             #observational event characteristics for all MCs
 events_frac_predict = pd.DataFrame()        #predicted events characteristics split into fraction of an event
 for i in range(len(t1)):
     
-    events_tmp, events_frac_tmp = mcl.find_events(t1[i], t2[i], plotting=0, \
-                                                  csv=0, livedb = 1)
+    events_tmp, events_frac_tmp = mcl.find_events(t1[i], t2[i], pdf = pdf, plotting=0, \
+                                        csv=0, livedb = 1, predict = 1)
     
-    events_predict = events.append(events_tmp)
-    events_frac_predict = events_frac.append(events_frac_tmp)
+    events_predict = events_predict.append(events_tmp)
+    events_frac_predict = events_frac_predict.append(events_frac_tmp)
 
 events_predict.to_csv("events_2004_2017.csv", sep='\t', encoding='utf-8') 
 events_frac_predict.to_csv("events_frac_2004_2017.csv", sep='\t', encoding='utf-8')   

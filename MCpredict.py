@@ -320,6 +320,7 @@ def create_event_dataframe(data, dst_data, pdf, t_frac = 5, predict = 0):
         events_frac['i_bzmax'].iloc[np.where(events_frac['evt_index'] == i)] = data['i_bzmax'].iloc[frac_ind].values
            
     if predict == 1:
+        
         #predict geoeffectivenes
         events_frac = predict_geoeff(events_frac, pdf)
 
@@ -855,7 +856,7 @@ def predict_duration(data, istart, iend):
         #;if (i_bzmax > i-step): data['bzm_actual'] = 0.
 
 def predict_geoeff(events_frac, pdf):
-    
+        
     """
    
     Parameters
@@ -869,58 +870,120 @@ def predict_geoeff(events_frac, pdf):
     None
     
     """   
+    
+    import scipy.integrate as integrate
+    
 
     #Using Bayesian statistics laid out in Chen papers, determine the probability 
     #of a geoeffective event given the estimated Bzm and tau
     
-    predict = pd.DataFrame({'bzmp_ind':[], 'taup_ind':[], 'P1':[], 'P1':[], \
-                            'bzm_most_prob':[], 'tau_most_prob':[], 'P3':[]})
-    for i in range(len(events_frac)):
+    #print("predict00")
+
     
-        #find the plane of probabilities for estimates bzmp and taup
-        predict.bzm_ind.iloc[i] = np.max(np.where(pdf['axis_vals'][0] < events_frac.bzm_predicted.iloc[i])[1])
-        predict.taup_ind.iloc[i] = np.min(np.where(pdf['axis_vals'][1] > events_frac.tau_predicted.iloc[i])[1])
+    #predict = pd.DataFrame({'bzmp_ind':[], 'taup_ind':[], 'P1':[], 'P1':[], \
+    #                        'bzm_most_prob':[], 'tau_most_prob':[], 'P3':[]})
+    
+    #cols = ['bzmp_ind', 'taup_ind', 'P1', 'P2' ,'bzm_most_prob', 'tau_most_prob', 'P3'] 
+    #predict = pd.DataFrame(0, index = np.arange(len(events_frac.start)), columns = cols)
         
+    #print("predict000")
+    
+    nevents = len(events_frac.start)
+    bzmp_ind = np.zeros((nevents),dtype=int)
+    taup_ind = np.zeros((nevents),dtype=int)
+    P1 = np.zeros((nevents),dtype=float)
+    P2 = np.zeros((nevents),dtype=float)
+    bzm_most_prob = np.zeros((nevents),dtype=float)
+    tau_most_prob = np.zeros((nevents),dtype=float)
+    P3 = np.zeros((nevents),dtype=float)
+
+    for i in range(len(events_frac.start)):
+    
+        #print("predict0000")
+        
+        if events_frac.frac.iloc[i] != 1.0:
+            continue
+        
+        #print(events_frac.frac.iloc[i])
+        
+        #find the plane of probabilities for estimates bzmp and taup
+        bzmp_ind[i] = np.max(np.where(pdf['axis_vals'][0] < events_frac.bzm_predicted.iloc[i])[0])
+        taup_ind[i] = np.min(np.where(pdf['axis_vals'][1] > events_frac.tau_predicted.iloc[i])[0])
+        
+        #print("bzm_pred, axis vals")
+        #print(bzmp_ind[i], taup_ind[i])
+        #print(events_frac.bzm_predicted.iloc[i], pdf["axis_vals"][0][bzmp_ind[i]-1], \
+        #      pdf["axis_vals"][0][bzmp_ind[i]], pdf["axis_vals"][0][bzmp_ind[i]+1])
+        
+        
+        #print("here")
+        #print("max pdf %f", np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,:,:,5]))
+    
+
         #the probability of the event being geoeffective with any value of bzm and tau
         #predict.P1.iloc[i] = pdf['P1_map'][bzmp_ind, taup_ind, events_frac.iloc[i]*5]
-        predict.P1.iloc[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind, taup_ind, int(events_frac.frac.iloc[i] * 5)], \
-                       axis_vals[1]),\
-                       axis_vals[0])
+        
+        #print(np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,:,:, int(events_frac.frac.iloc[i] * 5)]))
         
         
+        P1[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
+                       [:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)], \
+                       pdf['axis_vals'][1]),\
+                       pdf['axis_vals'][0])
+        
+        #print("P1 ")
+        #print(P1[i])
+    
         #the probability of the event have actual values bzmp +/- 5 nT and taup +/- 4 hours
-        bzm_ind_low = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] - 5.0)[1]))
-        bzm_ind_high = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] + 5.0)[1]))
+        bzmp_ind_low = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] - 6.12))[0])
+        bzmp_ind_high = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] + 6.12))[0])
         
-        tau_ind_low = np.min(np.where(pdf['axis_vals'][1] > events_frac.tau_predicted.iloc[i] - 6.0)[1])
-        tau_ind_high = np.min(np.where(pdf['axis_vals'][1] > events_frac.tau_predicted.iloc[i] + 6.0)[1])
+        taup_ind_low = np.min(np.where(pdf['axis_vals'][1] > (events_frac.tau_predicted.iloc[i] - 5.0))[0])
+        taup_ind_high = np.min(np.where(pdf['axis_vals'][1] > (events_frac.tau_predicted.iloc[i] + 5.0))[0])
         
-        predict.P2.iloc[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
-                       [:,:,bzmp_ind_low:bzmp_ind_high, taup_ind_low:tau_ind_high, int(events_frac.frac.iloc[i] * 5)],\
-                       axis_vals[1]),\
-                       axis_vals[0])
+        #print("P2")
+        #print(bzmp_ind_low, bzmp_ind_high, taup_ind_low, taup_ind_high)
 
+        P2[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
+                       [bzmp_ind_low:bzmp_ind_high+1, taup_ind_low:taup_ind_high+1, bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)],\
+                       pdf['axis_vals'][1][taup_ind_low:taup_ind_high+1]),\
+                       pdf['axis_vals'][0][bzmp_ind_low:bzmp_ind_high+1])
+        
+        #print(P2[i])
+        #print("predict2")    
 
         #The most probable values of bzm and tau based on bzmp and taup  
-        prob_max_ind = np.where(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind, taup_ind, int(events_frac.frac.iloc[i] * 5)] == 
-                 np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind, taup_ind, int(events_frac.frac.iloc[i] * 5)]) ) 
+        prob_max_ind = np.where(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)] == 
+                 np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)]) ) 
         
-        predict.bzm_most_prob.iloc[i] = axis_vals[0, prob_max_ind[0][0]]
-        predict.tau_most_prob.iloc[i] = axis_vals[1, prob_max_ind[1][0]]
+        #print(len(prob_max_ind[0]))
         
-        bzm_prob_max_ind_low = np.max(np.where(pdf['axis_vals'][0] < predict.bzm_most_prob.iloc[i] - 5.0)[1])
-        bzm_prob_max_ind_high = np.max(np.where(pdf['axis_vals'][0] < predict.bzm_most_prob.iloc[i] + 5.0)[1])
+        bzm_most_prob[i] = pdf["axis_vals"][0, prob_max_ind[0]]
+        tau_most_prob[i] = pdf["axis_vals"][1, prob_max_ind[1]]
         
-        tau_prob_max_ind_low = np.max(np.where(pdf['axis_vals'][1] < axis_vals[1, predict.tau_most_prob.iloc[i]] - 6.0)[1])
-        tau_prob_max_ind_high = np.max(np.where(pdf['axis_vals'][1] < axis_vals[1, predict.tau_most_prob.iloc[i]] + 6.0)[1])
+        bzm_prob_max_ind_low = np.max(np.where(pdf['axis_vals'][0] < bzm_most_prob[i] - 6.12)[0])
+        bzm_prob_max_ind_high = np.max(np.where(pdf['axis_vals'][0] < bzm_most_prob[i] + 6.12)[0])
         
-        predict.P3.iloc[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
-                       [:,:,bzm_prob_max_ind_low:bzm_prob_max_ind_high, tau_prob_max_ind_low:tau_prob_max_ind_high, int(events_frac.frac.iloc[i] * 5)],\
-                       axis_vals[1]),\
-                       axis_vals[0])
+        tau_prob_max_ind_low = np.max(np.where(pdf['axis_vals'][1] < pdf["axis_vals"][1, tau_most_prob[i]] - 5.0)[0])
+        tau_prob_max_ind_high = np.max(np.where(pdf['axis_vals'][1] < pdf["axis_vals"][1, tau_most_prob[i]] + 5.0)[0])
+        
+        P3[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
+                       [bzm_prob_max_ind_low:bzm_prob_max_ind_high+1, tau_prob_max_ind_low:tau_prob_max_ind_high+1, bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)],\
+                       pdf['axis_vals'][1][bzm_prob_max_ind_low:bzm_prob_max_ind_high+1]),\
+                       pdf['axis_vals'][0][tau_prob_max_ind_low:tau_prob_max_ind_high+1])
+
+        #print("predict3")
 
     #add new predictions to events_frac datafram
-    events_frac = pd.concat([events, predict], axis = 1)  
+    events_frac["bzmp_ind"] = bzmp_ind
+    events_frac["taup_ind"] = taup_ind
+    events_frac["P1"] = P1
+    events_frac["P2"] = P2
+    events_frac["bzm_most_prob"] = bzm_most_prob
+    events_frac["tau_most_prob"] = tau_most_prob
+    events_frac["P3"] = P3
+    
+    #print(list(events_frac))
     
     return events_frac
 
