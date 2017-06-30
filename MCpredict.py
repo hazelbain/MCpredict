@@ -855,6 +855,7 @@ def predict_duration(data, istart, iend):
         #if (i_thetamax > i-step): data['duration_actual'] = 0.
         #;if (i_bzmax > i-step): data['bzm_actual'] = 0.
 
+
 def predict_geoeff(events_frac, pdf):
         
     """
@@ -892,6 +893,7 @@ def predict_geoeff(events_frac, pdf):
     bzmp_ind = np.zeros((nevents),dtype=int)
     taup_ind = np.zeros((nevents),dtype=int)
     P1 = np.zeros((nevents),dtype=float)
+    P1_scaled = np.zeros((nevents),dtype=float)
     P2 = np.zeros((nevents),dtype=float)
     bzm_most_prob = np.zeros((nevents),dtype=float)
     tau_most_prob = np.zeros((nevents),dtype=float)
@@ -928,6 +930,12 @@ def predict_geoeff(events_frac, pdf):
         
         P1[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
                        [:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)], \
+                       pdf['axis_vals'][1]),\
+                       pdf['axis_vals'][0])
+        
+        P1_scaled[i] = integrate.simps(integrate.simps((pdf['P_bzm_tau_e_bzmp_taup']\
+                       [:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)]\
+                       * (1/pdf["P1_map"][:,:,int(events_frac.frac.iloc[i] * 5)].max())),\
                        pdf['axis_vals'][1]),\
                        pdf['axis_vals'][0])
         
@@ -978,12 +986,11 @@ def predict_geoeff(events_frac, pdf):
     events_frac["bzmp_ind"] = bzmp_ind
     events_frac["taup_ind"] = taup_ind
     events_frac["P1"] = P1
+    events_frac["P1_scaled"] = P1_scaled
     events_frac["P2"] = P2
     events_frac["bzm_most_prob"] = bzm_most_prob
     events_frac["tau_most_prob"] = tau_most_prob
     events_frac["P3"] = P3
-    
-    #print(list(events_frac))
     
     return events_frac
 

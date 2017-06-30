@@ -980,21 +980,21 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     P_bzmp_taup_bzm_tau_e2 = np.zeros(P_bzmp_taup_bzm_tau_e.shape)
 
     
-    #for i in np.arange(6):
-    for i in [5]:                          #note only calculating final dimension/time step in above code for quickness testing
+    for i in np.arange(6):
+    #for i in [5]:                          #note only calculating final dimension/time step in above code for quickness testing
         for j in range(len(P0_2[:,0])):
             for k in range(len(P0_2[0,:])):
                 
                 tmp = P_bzmp_taup_bzm_tau_e[:,:,j,k,i]
-                tmpint[j,k] = integrate.simps(integrate.simps(tmp, t), b)  
-                invtmpint[j,k] = 1/tmpint[j,k] 
+                tmpint[j,k,i] = integrate.simps(integrate.simps(tmp, t), b)  
+                invtmpint[j,k,i] = 1/tmpint[j,k,i] 
                 
-                P_bzmp_taup_bzm_tau_e2[:,:,j,k,i] = tmp * (1/tmpint[j,k])
+                P_bzmp_taup_bzm_tau_e2[:,:,j,k,i] = tmp * (1/tmpint[j,k,i])
                 
                 #normalization in each plane - should be 1
-                P0_2[j,k] = integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e2[:,:,j,k,5],\
+                P0_2[j,k,i] = integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e2[:,:,j,k,i],\
                                t),\
-                               b)  
+                               b)   
     #total 4D normalization
     norm_bzmp_taup_bzm_tau_e2 = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e2[:,:,:,:,5],
                                 tp),\
