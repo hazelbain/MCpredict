@@ -12,7 +12,7 @@ import pickle as pickle
 import pandas as pd
 import MC_longterm as mcl
 import MC_predict_pdfs as mcp
-import richardson_mc_analysis as evtplt
+import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff 
 
 
@@ -114,31 +114,52 @@ c = len(np.where((events_frac_predict2.geoeff.iloc[w] == 1.0) & (events_frac_pre
 
 CSI = a / (a+b+c)
 
+#incorrect events
+
+missed, false = sort_incorrect(events_frac)
 
 
-#missed events
-
-missed = events_frac_predict2.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
-
-
-
-
-def move_missed(events_frac):
+def sort_incorrect(events_frac):
     
     import shutil
+    import calendar
     
-    missed = events_frac_predict2.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
-    false = events_frac_predict2.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
+    #missed = events_frac_predict2.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
+    #false = events_frac_predict2.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
+
+    missed = events_frac_predict2.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
+    false = events_frac_predict2.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
     
     dd_longterm = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm/'
     dd_missed = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/missed/'
+    dd_false = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/false/'
     
     for i in range(len(missed)):
-        missed_str = dd_longterm + 'mcpredict_'+ missed['start'].apply(lambda x: datetime.datetime.strftime(x, '%Y-%m-%d')).iloc[0] + '_0000'
-        new_loc = dd_missed + 'mcpredict_'+ missed['start'].apply(lambda x: datetime.datetime.strftime(x, '%Y-%m-%d')).iloc[0] + '_0000'
+                
+        #construct filename
+        year = missed.start.iloc[i].year
+        mnth = missed.start.iloc[i].month                
+        cal = calendar.Calendar()
+        week_begin = [j[0] for j in cal.monthdatescalendar(year, mnth)]
+        fdate = week_begin[np.max(np.where(missed.start.iloc[i].date() >= np.asarray(week_begin)))]
+        missed_str = dd_longterm + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
+        new_loc = dd_missed + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
+        
+        shutil.copyfile( missed_str, new_loc) 
+        
+    for i in range(len(false)):
+                
+        #construct filename
+        year = missed.start.iloc[i].year
+        mnth = missed.start.iloc[i].month                
+        cal = calendar.Calendar()
+        week_begin = [j[0] for j in cal.monthdatescalendar(year, mnth)]
+        fdate = week_begin[np.max(np.where(missed.start.iloc[i].date() >= np.asarray(week_begin)))]
+        false_str = dd_longterm + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
+        new_loc = dd_false + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
         
         shutil.copyfile( missed_str, new_loc) 
 
-    
+    return missed, false
     
 
