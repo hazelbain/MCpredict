@@ -782,16 +782,32 @@ def predict_duration(data, istart, iend):
         index_bz_max = np.where(abs(bz[istart:i]) == bz_max) 
         bz_max = bz[istart + index_bz_max[0]].values      #to account for sign of Bz
 
-        theta_max = np.max(abs(theta[istart:i]))
-        index_theta_max = np.where(abs(theta[istart:i]) == theta_max)
-
-        i_bzmax = istart + index_bz_max[0]
-        i_thetamax = istart + index_theta_max[0]
+#==============================================================================
+#           OLD WAY
+#
+#         theta_max = np.max(abs(theta[istart:i]))
+#         index_theta_max = np.where(abs(theta[istart:i]) == theta_max)
+# 
+#         i_bzmax = istart + index_bz_max[0]
+#         i_thetamax = istart + index_theta_max[0]
+#         
+#         #calculate the rate of duration and the predicted duration of the event
+#         dtheta = theta_max - theta_start
+#         dduration = i_thetamax - istart
+#         rate_of_rotation = dtheta/dduration      #in degrees/minutes
+#==============================================================================
         
-        #calculate the rate of duration and the predicted duration of the event
-        dtheta = theta_max - theta_start
-        dduration = i_thetamax - istart
-        rate_of_rotation = dtheta/dduration      #in degrees/minutes
+        #----begin new---
+        index_theta_max = index_bz_max
+    
+        i_bzmax = istart + index_bz_max[0]
+        i_thetamax = istart + index_theta_max[0]]
+    
+        dtheta = (theta[index_bz_max] - theta_start)
+        dduration = index_bz_max[0] - istart
+        rate_of_rotation = dtheta/dduration  #in degrees/minutes
+        
+        #---end new---
           
         predicted_duration = abs(180./rate_of_rotation)/60.           #in hours
 
