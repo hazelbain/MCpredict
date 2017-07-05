@@ -79,7 +79,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                         csv = csv, livedb = livedb, predict = predict,\
                         smooth_num = 100, plotting = plotting,\
                         plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm/')
+                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_th/')
                     
                     events = events.append(events_tmp)
                     events_frac = events_frac.append(events_frac_tmp)
@@ -88,8 +88,6 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                 except:
                     print("*** Error running Chen MC Prediction ***")
                     errpredict.append(i)
-                    
-                
     
         events = events.reset_index() 
     
