@@ -142,33 +142,41 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
         sw_data = get_data(sdate, edate, view = 'tb_ace_sw_1m', \
                            csv = csv, livedb = livedb)
         
+        
         #convert to pandas DataFrame
         #MAYBE MOVE THIS STEP INTO THE GET DATA FUNCTION!!!!
         mag = pd.DataFrame(data = mag_data, columns = mag_data.dtype.names)
         sw = pd.DataFrame(data = sw_data, columns = sw_data.dtype.names)  
         sw.rename(columns={'dens': 'n', 'speed': 'v', 'temperature':'t'}, inplace=True)
-           
+               
     elif spacecraft == 'dscovr':
         print("todo: dscovr data read functions still todo")
     
     #clean data
     mag_clean, sw_clean = clean_data(mag, sw)
-        
+    
+    #pd.set_option('display.max_rows',100)
+    #print(mag_clean.gsm_lat.iloc[0:100])  
+    #pd.reset_option('display.max_rows')
+
+    
     #Create stucture to hold smoothed data
-    col_names = ['date', 'bx', 'by', 'bz', 'bt']        
+    col_names = ['date', 'bx', 'by', 'bz', 'bt', 'theta_z', 'theta_y']        
     data = pd.concat([mag_clean['date'], \
             pd.Series(mag_clean['gsm_bx']).rolling(window = smooth_num).mean(), \
             pd.Series(mag_clean['gsm_by']).rolling(window = smooth_num).mean(),\
             pd.Series(mag_clean['gsm_bz']).rolling(window = smooth_num).mean(), \
-            pd.Series(mag_clean['bt']).rolling(window = smooth_num).mean()], axis=1, keys = col_names)
-       
-    data['theta_z'] = pd.Series(180.*np.arcsin(mag_clean['gsm_bz']/mag_clean['bt'])/np.pi)\
-                        .rolling(window = smooth_num).mean()   #in degrees
-    data['theta_y'] = pd.Series(180.*np.arcsin(mag_clean['gsm_by']/mag_clean['bt'])/np.pi)\
-                        .rolling(window = smooth_num).mean()   #in degrees
+            pd.Series(mag_clean['bt']).rolling(window = smooth_num).mean(),\
+            pd.Series(mag_clean['gsm_lat']).rolling(window = smooth_num).mean(), \
+            pd.Series(mag_clean['gsm_lon']).rolling(window = smooth_num).mean()], axis=1, keys = col_names)
+          
+    #data['theta_z'] = pd.Series(180.*np.arcsin(mag_clean['gsm_bz']/mag_clean['bt'])/np.pi)\
+    #                    .rolling(window = smooth_num).mean()   #in degrees
+    #data['theta_y'] = pd.Series(180.*np.arcsin(mag_clean['gsm_by']/mag_clean['bt'])/np.pi)\
+    #                    .rolling(window = smooth_num).mean()   #in degrees
                         
-    data['theta_z'] = data['theta_z'].interpolate()      
-    data['theta_y'] = data['theta_y'].interpolate()                    
+    #data['theta_z'] = data['theta_z'].interpolate()      
+    #data['theta_y'] = data['theta_y'].interpolate()                    
 
     data['sw_v'] = pd.Series(sw_clean['v']).rolling(window = smooth_num).mean()
     data['sw_n'] = pd.Series(sw_clean['n']).rolling(window = smooth_num).mean()    
@@ -181,7 +189,16 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
     data['bzm_predicted'] = 0
     data['i_bzmax'] = 0
     data['bzm_actual'] = 0
-       
+    
+#==============================================================================
+#     #drop the first 98 rows due to smoothing
+#     data.drop(data.index[[0,98]])
+#     
+#     pd.set_option('display.max_rows',100)
+#     print(data.bz.iloc[0:100])  
+#     pd.reset_option('display.max_rows')
+#==============================================================================
+    
     #Incrementally step through the data and look for mc events.
     #An event is defined as the time bounded by sign changes of Bz.
     #An event needs to have a min_durtaion of min_duration.
@@ -232,6 +249,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
 
         if icme_event(istart, iend, len(data['date'])):
             validation_stats, data, resultsdir, istart, iend
+
     
     #create new dataframe to record event characteristics
     events, events_frac = create_event_dataframe(data, dst_data, pdf, predict = predict)
@@ -240,6 +258,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
     if plotting == 1:
         evt_times = events[['start','end']].values
         mcpredict_plot(data, events_frac, dst_data, line=line, bars = evt_times, plt_outfile = plt_outfile, plt_outpath = plt_outpath)
+
     
     return data, events, events_frac
 
@@ -754,16 +773,13 @@ def predict_duration(data, istart, iend):
     -------
     None
     
-    """   
+    """
 
     #Extract data from structure needed for prediction routine
-    bz = data['bz']             #in nT
-    theta = data['theta_z']     #in degrees
+    bz = data['bz'].values             #in nT
+    theta = data['theta_z'].values     #in degrees
 
     theta_start = theta[istart]
-    theta_prev_step = theta_start
-    
-    tot_dtheta = 0
 
     #print, istart, bz_start, theta_start
     #print, iend, bz_end, theta_end
@@ -775,12 +791,11 @@ def predict_duration(data, istart, iend):
     for i in np.arange(istart+step, iend, step):
         
         bz_current = bz[i]
-        theta_current = theta[i]
 
         #max bz and theta up until current time
         bz_max = np.max(abs(bz[istart:i]))
-        index_bz_max = np.where(abs(bz[istart:i]) == bz_max) 
-        bz_max = bz[istart + index_bz_max[0]].values      #to account for sign of Bz
+        index_bz_max = np.where(abs(bz[istart:i]) == bz_max)[0][0]         
+        bz_max = bz[istart + index_bz_max]      #to account for sign of Bz
 
 #==============================================================================
 #           OLD WAY
@@ -796,17 +811,18 @@ def predict_duration(data, istart, iend):
 #         dduration = i_thetamax - istart
 #         rate_of_rotation = dtheta/dduration      #in degrees/minutes
 #==============================================================================
-        
+
         #----begin new---
-        index_theta_max = index_bz_max
+        index_theta_bz_max = index_bz_max
+        theta_max = theta[istart + index_theta_bz_max]
+
+        i_bzmax = istart + index_bz_max
+        #i_thetamax = istart + index_theta_max
     
-        i_bzmax = istart + index_bz_max[0]
-        i_thetamax = istart + index_theta_max[0]]
-    
-        dtheta = (theta[index_bz_max] - theta_start)
-        dduration = index_bz_max[0] - istart
+        dtheta = (theta_max - theta_start)
+        dduration = i_bzmax - istart
         rate_of_rotation = dtheta/dduration  #in degrees/minutes
-        
+                
         #---end new---
           
         predicted_duration = abs(180./rate_of_rotation)/60.           #in hours
@@ -824,11 +840,10 @@ def predict_duration(data, istart, iend):
         #print('rate of rotation: ' + str(rate_of_rotation))
         #print('predicted duration: ' + str(predicted_duration))
         #print('\n')
-        
+
         if value_increasing(bz_current, bz_max):
-            
+                       
             form_function = np.sin(np.pi*((i_bzmax - istart)/60.)/predicted_duration) #Sin function in radians
-                
             predicted_bzmax = bz_max/form_function
             #predicted_bzmax = predicted_bzmax[0][0]
             
@@ -839,7 +854,6 @@ def predict_duration(data, istart, iend):
                            
         if np.abs(predicted_bzmax) > 30.:
             predicted_bzmax = bz_max 
-
         
         data.loc[i-step:i, 'istart'] = istart
         data.loc[i-step:i, 'iend'] = iend   
@@ -853,10 +867,8 @@ def predict_duration(data, istart, iend):
 
         #max value of Bz with sign
         bz_max_val = np.max(abs(bz[istart:iend]))
-        index_bz_max_val = np.where(abs(bz[istart:iend]) == bz_max_val)
-        data.loc[i-step:i, 'bzm_actual'] = bz.loc[istart + index_bz_max_val[0]].values         
-
-
+        index_bz_max_val = np.where(abs(bz[istart:iend]) == bz_max_val)[0][0]
+        data.loc[i-step:i, 'bzm_actual'] = bz[istart + index_bz_max_val]         
     
         #fill in rest of data record for remaining portion if what is left is less
         #than one step size
@@ -866,11 +878,10 @@ def predict_duration(data, istart, iend):
             data.loc[i:iend, 'tau_predicted'] = predicted_duration    #[0][0]
             data.loc[i:iend, 'tau_actual'] = (iend-istart)/60.
             data.loc[i:iend, 'bzm_predicted'] = predicted_bzmax
-            data.loc[i:iend, 'bzm_actual'] = bz.loc[istart + index_bz_max_val[0]].values  
+            data.loc[i:iend, 'bzm_actual'] = bz[istart + index_bz_max_val]  
 
         #if (i_thetamax > i-step): data['duration_actual'] = 0.
         #;if (i_bzmax > i-step): data['bzm_actual'] = 0.
-
 
 def predict_geoeff(events_frac, pdf):
         
