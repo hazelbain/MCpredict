@@ -92,7 +92,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
         events = events.reset_index() 
     
         #drop duplicate events 
-        events_uniq = events.drop_duplicates('start')       
+        events_uniq = events.drop_duplicates()       
         events_frac_uniq = events_frac.drop_duplicates()       
                 
         print("--------Error predict------------")

@@ -224,64 +224,50 @@ def plot_obs_vs_predict(events_frac, outname = 'bzm_obs_vs_predicted', fname = '
     return None
 
 
-def write_report(events_frac, outname = 'bzm_obs_vs_predicted', fname = ''):
-    
-    
-    
-    
-    
-
-
-
-
-
-
-<h1>This is a Heading</h1>
-<p>This is a paragraph.</p>
-
-
-    
-    
-    ##open the html file
-    f = open(outname + '_' + fname + '.html', 'w')
-     
-    f.write('<!DOCTYPE html>')
-    f.write('<html>')
-    f.write('<head>')
-    f.write('<title>Page Title</title>')
-    f.write('</head>')
-    f.write('<body>')
-    
-    #skill score
-    
-    f.write('   <p>Skill Score ' + str(skill) + ' </p>')
-    
-    #contingency table
-    f.write('   <table border="1">')
-    f.write('   <tr>')
-    f.write('       <th>Obs\Pred</th>')
-    f.write('       <th colspan="2">Nongeoeff</th>')
-    f.write('       <th colspan="2">Geoeff</th>')
-    f.write('   </tr>')   
-    f.write('   <tr>')
-    f.write('       <th>Nongeoeff</th>')
-    f.write('       <td>'+ str(len(corneg)) +'</td>')
-    f.write('       <td>'+ str(len(false)) +'</td>')
-    f.write('   </tr>')  
-    f.write('   <tr>')
-    f.write('       <th>Geoeff</th>')
-    f.write('       <td>'+ str(len(missed)) +'</td>')
-    f.write('       <td>'+ str(len(corpos)) +'</td>')
-    f.write('   </tr>')      
-    f.write('  </table>\n')
-    
-    
-    
-    
-    f.write('</body>')
-    f.write('</html>')
-
-    f.close()    
-    
-    
+#==============================================================================
+# def write_report(events_frac, outname = 'bzm_obs_vs_predicted', fname = ''):
+#     
+#        
+#     ##open the html file
+#     f = open(outname + '_' + fname + '.html', 'w')
+#      
+#     f.write('<!DOCTYPE html>')
+#     f.write('<html>')
+#     f.write('<head>')
+#     f.write('<title>Page Title</title>')
+#     f.write('</head>')
+#     f.write('<body>')
+#     
+#     #skill score
+#     f.write('   <p>Skill Score ' + str(skill) + ' </p>')
+#     
+#     #contingency table
+#     f.write('   <table border="1">')
+#     f.write('   <tr>')
+#     f.write('       <th>Obs\Pred</th>')
+#     f.write('       <th colspan="2">Nongeoeff</th>')
+#     f.write('       <th colspan="2">Geoeff</th>')
+#     f.write('   </tr>')   
+#     f.write('   <tr>')
+#     f.write('       <th>Nongeoeff</th>')
+#     f.write('       <td>'+ str(len(corneg)) +'</td>')
+#     f.write('       <td>'+ str(len(false)) +'</td>')
+#     f.write('   </tr>')  
+#     f.write('   <tr>')
+#     f.write('       <th>Geoeff</th>')
+#     f.write('       <td>'+ str(len(missed)) +'</td>')
+#     f.write('       <td>'+ str(len(corpos)) +'</td>')
+#     f.write('   </tr>')      
+#     f.write('  </table>\n')
+#     
+#     #    
+# 
+# 
+#     f.write('</body>')
+#     f.write('</html>')
+# 
+#     f.close()    
+#     
+#     
+#==============================================================================
     

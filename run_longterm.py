@@ -18,11 +18,11 @@ from MCpredict import predict_geoeff
 
 #### step 1: gather events to use for the bayseian PDF, uses Chen_MC_prediction without predict keyword
 
-#t1 = ['1-jan-1998','1-jan-1999','1-jan-2000','1-jan-2001','1-jan-2002','1-jan-2003']
-#t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003']
+t1 = ['1-jan-1998','1-jan-1999','1-jan-2000','1-jan-2001','1-jan-2002','1-jan-2003']
+t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003']
 
-t1 = ['1-jan-2005']
-t2 = ['7-jan-2005']
+#t1 = ['1-jan-2005']
+#t2 = ['7-jan-2005']
 
 events = pd.DataFrame()             #observational event characteristics for all MCs
 events_frac = pd.DataFrame()        #predicted events characteristics split into fraction of an event
@@ -34,6 +34,9 @@ for i in range(len(t1)):
     events = events.append(events_tmp)
     events_frac = events_frac.append(events_frac_tmp)
     
+events = events_predict.drop_duplicates()       
+events_frac = events_frac.drop_duplicates()      
+    
 events.to_csv("events_th_1998_2004.csv", sep='\t', encoding='utf-8') 
 events_frac.to_csv("events_frac_th_1998_2004.csv", sep='\t', encoding='utf-8')   
 
@@ -42,7 +45,7 @@ pickle.dump(events,open("events_th_1998_2004.p", "wb"))
     
 mcplt.plot_obs_bz_tau(events, 'bzm_vs_tau_th_1998_2004.pdf')
 mcplt.plot_predict_bz_tau_frac(events_frac, 'bztau_predict_th_1998_2004.pdf')
-
+mcplt.plot_obs_vs_predict(events_frac, fname='th_1998_2017')
 
 #### step 2: use the events_frac from above to generate the bayesian PDF
 
@@ -77,6 +80,9 @@ for i in range(len(t1)):
     
     events_predict = events_predict.append(events_tmp)
     events_frac_predict = events_frac_predict.append(events_frac_tmp)
+
+events_predict = events_predict.drop_duplicates()       
+events_frac_predict = events_frac_predict.drop_duplicates()  
 
 events_predict.to_csv("events_th_2004_2017.csv", sep='\t', encoding='utf-8') 
 events_frac_predict.to_csv("events_frac_th_2004_2017.csv", sep='\t', encoding='utf-8')   
@@ -124,6 +130,21 @@ missed, false = sort_incorrect(events_frac_predict2)
 
 ##plots
 mcplt.plot_bzm_vs_tau_skill(events_frac_predict2, fname = '2004_2017')
+
+
+
+#obs vs predicted
+evts0 = events_frac0[['bzm','bzm_predicted','tau','tau_predicted']]\
+                    .iloc[np.where((events_frac0.frac == 1.0) & (events_frac0.geoeff == 1))[0]]
+                    
+evts = events_frac[['bzm','bzm_predicted','tau','tau_predicted']]\
+                    .iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff == 1))[0]]                    
+
+t_mean_diff0 = np.mean(np.abs(evts0.tau - evts0.tau_predicted)) 
+t_stdev_diff0 = np.std(np.abs(evts0.tau - evts0.tau_predicted)) 
+
+t_mean_diff = np.mean(np.abs(evts.tau - evts.tau_predicted)) 
+t_stdev_diff = np.std(np.abs(evts.tau - evts.tau_predicted)) 
 
 
 
