@@ -876,9 +876,9 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     #P_bzmp_taup_bzm_tau_e is a function of the fraction of time f throughout an event
     #currently the fit to the data considers every 5th of an event 
     Ptmp_bzmp_taup_bzm_tau_e = np.zeros((db2,dt2,db2,dt2,6))
-    for i in np.arange(6)*0.2:
+    #for i in np.arange(6)*0.2:
     # TODO:
-    #for i in [1.0]: 
+    for i in [1.0]: 
         
         #extract raw data points from dataframe of estimates bzm' and tau' for 
         #fraction f throughout eoeffective events
@@ -974,9 +974,9 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     
     ############## FOLLOWING CODE IS MESSING ABOUT TO GET THE PLANES TO NORM TO 1 #############
 
-    P0_2 = np.zeros(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,5].shape)
-    tmpint = np.zeros(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,5].shape)
-    invtmpint = np.zeros(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,5].shape)
+    P0_2 = np.zeros(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,:].shape)
+    tmpint = np.zeros(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,:].shape)
+    invtmpint = np.zeros(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,:].shape)
     P_bzmp_taup_bzm_tau_e2 = np.zeros(P_bzmp_taup_bzm_tau_e.shape)
 
     
