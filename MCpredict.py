@@ -187,6 +187,8 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
     data['tau_predicted'] = 0
     data['tau_actual'] = 0
     data['bzm_predicted'] = 0
+    data['theta_max'] = 0
+    data['dtheta'] = 0
     data['i_bzmax'] = 0
     data['bzm_actual'] = 0
     
@@ -302,12 +304,14 @@ def create_event_dataframe(data, dst_data, pdf, t_frac = 5, predict = 0):
                                          data['iend'].drop_duplicates().values[1::]]))
     
     #start data frame to record each event's characteristics    
-    evt_col_names = ['start', 'bzm', 'tau', 'istart', 'iend']        
+    evt_col_names = ['start', 'bzm', 'tau', 'istart', 'iend','theta_max','dtheta']        
     events = pd.concat([data['date'][evt_indices[:,0]],\
                     data['bzm_actual'][evt_indices[:,0]],\
                     data['tau_actual'][evt_indices[:,0]],\
                     data['istart'][evt_indices[:,0]],\
-                    data['iend'][evt_indices[:,0]] ], axis=1, keys = evt_col_names)
+                    data['iend'][evt_indices[:,0]] ,\
+                    data['theta_max'][evt_indices[:,0]],\
+                    data['dtheta'][evt_indices[:,0]] ], axis=1, keys = evt_col_names)
     events['end'] =  data['date'][evt_indices[:,1]].values  #needs to be added separately due to different index
 
     #get min dst and geoeffective flags
@@ -438,12 +442,17 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     leg.get_frame().set_alpha(0.5)
     
     #plot the position of max bz
-    for i in np.arange(0, len(events_frac), 6):
+    for i in np.arange(5, len(events_frac), 6):
         if (events_frac['geoeff'].iloc[i] == 1.0):
             wmax_bz = np.where( data['bz'].iloc[events_frac['istart'].iloc[i] : events_frac['iend'].iloc[i]] == events_frac['bzm'].iloc[i])[0]
 
             ax1.axvline(x=data['date'].iloc[events_frac['istart'].iloc[i] + wmax_bz].values[0], \
                      linewidth=1, linestyle='--', color='grey')
+
+    #max bz line
+    for b in range(len(bars)):
+        if events_frac['geoeff'].iloc[b*6] == 1.0:
+            ax1.hlines(events_frac['bzm'].iloc[b*6], bars[b,0], bars[b,1], linestyle='-',color='grey')
 
     #plot the fitted profile at certain intervals through the event  
     if plot_fit == 1:
@@ -458,8 +467,10 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
                 
                 ax1.plot(fit_times, fit_profile, color=fitcolor[events_frac['frac'].iloc[i]])    
 
+
     #----theta_z
     ax1b.plot(data['date'], data['theta_z'], label='theta_z')
+    ax1b.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax1b.set_xticklabels(' ')
     ax1b.xaxis.set_major_locator(daysLoc)
     ax1b.xaxis.set_minor_locator(hoursLoc)
@@ -470,7 +481,18 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
         ax1b.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
     leg = ax1b.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
-                              
+    
+    #plot the position of max theta
+    for i in np.arange(5, len(events_frac), 6):
+        if (events_frac['geoeff'].iloc[i] == 1.0):
+            
+            wmax_th = np.where( data['theta_z'].iloc[events_frac['istart'].iloc[i] : events_frac['iend'].iloc[i]] == events_frac['theta_max'].iloc[i])[0]
+            
+            ax1b.axvline(x=data['date'].iloc[events_frac['istart'].iloc[i] + wmax_th].values[0], \
+                     linewidth=1, linestyle='--', color='grey')
+            
+
+                  
     #----density
     ax2.plot(data['date'], data['sw_n'], label='n ($\mathrm{cm^-3}$)')
     ax2.set_xticklabels(' ')
@@ -790,62 +812,60 @@ def predict_duration(data, istart, iend):
     
     for i in np.arange(istart+step, iend, step):
         
+        #current values
         bz_current = bz[i]
+        theta_current = theta[i]
 
-        #max bz and theta up until current time
+        #max bz and theta at max bz,  up until current time
         bz_max = np.max(abs(bz[istart:i]))
         index_bz_max = np.where(abs(bz[istart:i]) == bz_max)[0][0]         
-        bz_max = bz[istart + index_bz_max]      #to account for sign of Bz
-
-#==============================================================================
-#           OLD WAY
-#
-#         theta_max = np.max(abs(theta[istart:i]))
-#         index_theta_max = np.where(abs(theta[istart:i]) == theta_max)
-# 
-#         i_bzmax = istart + index_bz_max[0]
-#         i_thetamax = istart + index_theta_max[0]
-#         
-#         #calculate the rate of duration and the predicted duration of the event
-#         dtheta = theta_max - theta_start
-#         dduration = i_thetamax - istart
-#         rate_of_rotation = dtheta/dduration      #in degrees/minutes
-#==============================================================================
-
-        #----begin new---
-        index_theta_bz_max = index_bz_max
-        theta_max = theta[istart + index_theta_bz_max]
-
-        i_bzmax = istart + index_bz_max
-        #i_thetamax = istart + index_theta_max
-    
-        dtheta = (theta_max - theta_start)
-        dduration = i_bzmax - istart
-        rate_of_rotation = dtheta/dduration  #in degrees/minutes
-                
-        #---end new---
-          
-        predicted_duration = abs(180./rate_of_rotation)/60.           #in hours
-
-        #current_dtheta = theta_current - theta_prev_step
-        #current_duration = step
-        #current_rate_of_rotation = current_dtheta/current_duration
         
-        #predicted_duration = abs((180.-abs(theta_current - theta_start))/current_rate_of_rotation)/60.  + ((i - istart)/60.)     #in hours
+        bz_max = bz[istart + index_bz_max]      #to account for sign of Bz
+        theta_bz_max = theta[istart + index_bz_max]
 
-        #theta_prev_step = theta_current
+        #max theta
+        theta_max = np.max(abs(theta[istart:i]))
+        index_theta_max = np.where(abs(theta[istart:i]) == theta_max)[0][0]   
+        theta_max = theta[istart + index_bz_max]
+        
+        #indices of the max bz and theta
+        i_bzmax = istart + index_bz_max
+        i_thetamax = istart + index_theta_max
 
-        #average_decreasing_rotation = rate_of_rotation
+        if ((istart >= 4256) & (iend  <= 4748)):
+            print("\n theta_max: " +str(theta_max))
 
-        #print('rate of rotation: ' + str(rate_of_rotation))
-        #print('predicted duration: ' + str(predicted_duration))
-        #print('\n')
+        #determine the rotation of theta so far
+        if value_increasing(theta_current, theta_bz_max):
 
+            dtheta = (theta_bz_max - theta_start)
+            if ((istart >= 4256) & (iend  <= 4748)):
+                print("increasing")
+                print("dtheta: " +str(dtheta))
+        else:
+
+            dtheta = (theta_max - theta_start) + (theta_max - theta_current)
+            if ((istart >= 4256) & (iend  <= 4748)):
+                print("decreasing")
+                print("dtheta: " +str(dtheta))
+               
+        #determine the predicted duration and rate of rotation of field    
+        dduration = i - istart
+        rate_of_rotation = dtheta/dduration  #in degrees/minutes
+
+        predicted_duration = abs(180./rate_of_rotation)/60.           #in hours
+        
+        if ((istart >= 4256) & (iend  <= 4748)):
+            print("dur: " + str(dduration) + ", rate_rot: " + str(rate_of_rotation) + ", pred_dur: " + str(predicted_duration),\
+                  "actual dur: " + str((iend-istart)/60.)) 
+  
+
+
+        #now try and predict Bz max
         if value_increasing(bz_current, bz_max):
-                       
+            
             form_function = np.sin(np.pi*((i_bzmax - istart)/60.)/predicted_duration) #Sin function in radians
             predicted_bzmax = bz_max/form_function
-            #predicted_bzmax = predicted_bzmax[0][0]
             
             #if (form_function < 0) & (i >= step-1):
             #    predicted_bzmax = data['bzm_predicted'][i-step-1]
@@ -864,6 +884,12 @@ def predict_duration(data, istart, iend):
 
         #index of max bz up to the current time - used for fitting bz profile
         data.loc[i-step:i, 'i_bzmax'] = i_bzmax
+
+        #record theta characteristics
+        theta_max_val = np.max(abs(theta[istart:iend]))
+        index_theta_max_val = np.where(abs(theta[istart:iend]) == theta_max_val)[0][0]
+        data.loc[i-step:i, 'theta_max'] = theta[istart + index_theta_max_val]   
+        data.loc[i-step:i, 'dtheta'] = dtheta
 
         #max value of Bz with sign
         bz_max_val = np.max(abs(bz[istart:iend]))
