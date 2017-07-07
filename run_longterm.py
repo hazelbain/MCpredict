@@ -147,6 +147,8 @@ t_mean_diff = np.mean(np.abs(evts.tau - evts.tau_predicted))
 t_stdev_diff = np.std(np.abs(evts.tau - evts.tau_predicted)) 
 
 
+#
+
 
 
 def sort_incorrect(events_frac):

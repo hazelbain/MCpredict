@@ -19,7 +19,8 @@ from datetime import datetime
 
 import matplotlib.pyplot as plt
 
-def MCpredict_all_Richardson(plotting = 0):
+def MCpredict_all_Richardson(plotting = 0, csv = 1, livedb = 0, 
+                predict = 0, ew = 2, nw = 1, pdf = np.zeros((50,50,50,50))):
     
     """
     Tests the Chen magnetic cloud fitting model using known magnetic cloud events
@@ -68,17 +69,6 @@ def MCpredict_all_Richardson(plotting = 0):
         if mc_list12['mc_start'][i] == None:
             continue
         
-        #known events with data issues. Still to fix this
-        if i == 3:
-            continue
-        if i == 49:
-            continue
-        if i == 58:
-            continue
-        if i == 96:
-            continue
-        
-        
         #get mc times +/- 24 hours
         st = mc_list12['mc_start'][i] - timedelta(hours=24)
         et = mc_list12['mc_start'][i] + timedelta(hours=48)
@@ -90,13 +80,19 @@ def MCpredict_all_Richardson(plotting = 0):
         #run the MC fit and prediction routine
         try:
 
-            data,events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, dst_data[st - timedelta(1):et + timedelta(1)], smooth_num = 100,\
-                line = [mc_list12['mc_start'][i], mc_list12['mc_end'][i]], plotting = plotting,\
-                plt_outfile = 'mcpredict_'+ datetime.strftime(mc_list12['mc_start'][i], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots_2_smooth100_bzmfix/')
+            #data,events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, dst_data[st - timedelta(1):et + timedelta(1)], smooth_num = 100,\
+            #    line = [mc_list12['mc_start'][i], mc_list12['mc_end'][i]], plotting = plotting,\
+            #    plt_outfile = 'mcpredict_'+ datetime.strftime(mc_list12['mc_start'][i], "%Y-%m-%d_%H%M") + '.pdf' ,\
+            #    plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots_2_smooth100_bzmfix/')
+         
             
-                            
-            print("----appending event----")
+            data, events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
+                    dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
+                    csv = csv, livedb = livedb, predict = predict,\
+                    smooth_num = 100, plotting = plotting,\
+                    plt_outfile = 'mcpredict_'+ datetime.strftime(mc_list12['mc_start'][i], "%Y-%m-%d_%H%M") + '.pdf' ,\
+                    plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_th2/')
+                    
             events = events.append(events_tmp)
             events_frac = events_frac.append(events_frac_tmp)
             
@@ -107,7 +103,8 @@ def MCpredict_all_Richardson(plotting = 0):
     events = events.reset_index() 
 
     #drop duplicate events 
-    events_uniq = events.drop_duplicates('start')       
+    events_uniq = events.drop_duplicates()       
+    events_frac_uniq = events_frac.drop_duplicates()         
             
     print("--------Error predict------------")
     print(errpredict)
