@@ -832,32 +832,42 @@ def predict_duration(data, istart, iend):
         i_bzmax = istart + index_bz_max
         i_thetamax = istart + index_theta_max
 
-        if ((istart >= 4256) & (iend  <= 4748)):
-            print("\n theta_max: " +str(theta_max))
+#==============================================================================
+#         if ((istart >= 4256) & (iend  <= 4748)):
+#             print("\n theta_max: " +str(theta_max))
+#==============================================================================
 
         #determine the rotation of theta so far
         if value_increasing(theta_current, theta_bz_max):
 
             dtheta = (theta_bz_max - theta_start)
-            if ((istart >= 4256) & (iend  <= 4748)):
-                print("increasing")
-                print("dtheta: " +str(dtheta))
+            dth = 180.0
+#==============================================================================
+#             if ((istart >= 4256) & (iend  <= 4748)):
+#                 print("increasing")
+#                 print("dtheta: " +str(dtheta))
+#==============================================================================
         else:
 
             dtheta = (theta_max - theta_start) + (theta_max - theta_current)
-            if ((istart >= 4256) & (iend  <= 4748)):
-                print("decreasing")
-                print("dtheta: " +str(dtheta))
+            dth = 2.0 * theta_max
+#==============================================================================
+#             if ((istart >= 4256) & (iend  <= 4748)):
+#                 print("decreasing")
+#                 print("dtheta: " +str(dtheta))
+#==============================================================================
                
         #determine the predicted duration and rate of rotation of field    
         dduration = i - istart
         rate_of_rotation = dtheta/dduration  #in degrees/minutes
 
-        predicted_duration = abs(180./rate_of_rotation)/60.           #in hours
+        predicted_duration = abs(dth/rate_of_rotation)/60.           #in hours
         
-        if ((istart >= 4256) & (iend  <= 4748)):
-            print("dur: " + str(dduration) + ", rate_rot: " + str(rate_of_rotation) + ", pred_dur: " + str(predicted_duration),\
-                  "actual dur: " + str((iend-istart)/60.)) 
+#==============================================================================
+#         if ((istart >= 4256) & (iend  <= 4748)):
+#             print("dur: " + str(dduration) + ", rate_rot: " + str(rate_of_rotation) + ", pred_dur: " + str(predicted_duration),\
+#                   "actual dur: " + str((iend-istart)/60.)) 
+#==============================================================================
   
 
 
