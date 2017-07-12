@@ -17,10 +17,11 @@ import pandas as pd
 from datetime import timedelta
 from datetime import datetime
 
-import matplotlib.pyplot as plt
+import pickle as pickle
 
-def MCpredict_all_Richardson(plotting = 0, csv = 1, livedb = 0, 
-                predict = 0, ew = 2, nw = 1, pdf = np.zeros((50,50,50,50))):
+def MCpredict_all_Richardson(plotting = 0, csv = 0, livedb = 1, 
+                predict = 0, ew = 2, nw = 1, pdf = np.zeros((50,50,50,50)),
+                plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_th3/'):
     
     """
     Tests the Chen magnetic cloud fitting model using known magnetic cloud events
@@ -64,6 +65,7 @@ def MCpredict_all_Richardson(plotting = 0, csv = 1, livedb = 0,
     
     errpredict = []                     # keep a note of any events where there were errors
     
+    count = 0
     for i in range(0,len(mc_list12['mc_start'])):
         
         if mc_list12['mc_start'][i] == None:
@@ -91,15 +93,22 @@ def MCpredict_all_Richardson(plotting = 0, csv = 1, livedb = 0,
                     csv = csv, livedb = livedb, predict = predict,\
                     smooth_num = 100, plotting = plotting,\
                     plt_outfile = 'mcpredict_'+ datetime.strftime(mc_list12['mc_start'][i], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                    plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_th2/')
+                    plt_outpath = plt_outpath)
                     
             events = events.append(events_tmp)
             events_frac = events_frac.append(events_frac_tmp)
             
+            wg = np.where(events_tmp.geoeff == 1.0)
+            for j in wg[0]:
+                evt_data = data.iloc[events_tmp.istart.iloc[j]:events_tmp.iend.iloc[j]]
+                pickle.dump(evt_data,open("C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_evt_data/evt"+str(count)+".p", "wb"))
+                count+=1
+                
+            
+            
         except:
             errpredict.append(i)
-  
-            
+           
     events = events.reset_index() 
 
     #drop duplicate events 
@@ -112,7 +121,7 @@ def MCpredict_all_Richardson(plotting = 0, csv = 1, livedb = 0,
     #plot_obs_bz_tau(events_uniq, 'bzm_vs_tau_smooth100.pdf')
     #plot_predict_bz_tau_frac(events_frac, outname = 'bztau_predict.pdf')
     
-    return events_uniq, events_frac
+    return events_uniq, events_frac_uniq
     
     
 def plot_all_Richardson_MC():

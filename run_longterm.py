@@ -34,22 +34,22 @@ for i in range(len(t1)):
     events = events.append(events_tmp)
     events_frac = events_frac.append(events_frac_tmp)
     
-events = events_predict.drop_duplicates()       
+events = events.drop_duplicates()       
 events_frac = events_frac.drop_duplicates()      
     
-events.to_csv("events_th_1998_2004.csv", sep='\t', encoding='utf-8') 
-events_frac.to_csv("events_frac_th_1998_2004.csv", sep='\t', encoding='utf-8')   
+events.to_csv("events_th3_1998_2004.csv", sep='\t', encoding='utf-8') 
+events_frac.to_csv("events_frac_th3_1998_2004.csv", sep='\t', encoding='utf-8')   
 
-pickle.dump(events_frac,open("events_frac_th_1998_2004.p", "wb"))
-pickle.dump(events,open("events_th_1998_2004.p", "wb"))
+pickle.dump(events_frac,open("events_frac_th3_1998_2004.p", "wb"))
+pickle.dump(events,open("events_th3_1998_2004.p", "wb"))
     
-mcplt.plot_obs_bz_tau(events, 'bzm_vs_tau_th_1998_2004.pdf')
-mcplt.plot_predict_bz_tau_frac(events_frac, 'bztau_predict_th_1998_2004.pdf')
-mcplt.plot_obs_vs_predict(events_frac, fname='th_1998_2017')
+mcplt.plot_obs_bz_tau(events, 'bzm_vs_tau_th3_1998_2004.pdf')
+mcplt.plot_predict_bz_tau_frac(events_frac, 'bztau_predict_th3_1998_2004.pdf')
+mcplt.plot_obs_vs_predict(events_frac, fname='th3_1998_2004')
 
 #### step 2: use the events_frac from above to generate the bayesian PDF
 
-pdf = mcp.create_pdfs(events_frac, fname='th_1998_2004' )
+pdf = mcp.create_pdfs(events_frac, fname='th3_1998_2004' )
 
 #restore prediction matrix
 #pdf = pickle.load(open("Pdict_ew2_nw1.p","rb"))
@@ -84,14 +84,15 @@ for i in range(len(t1)):
 events_predict = events_predict.drop_duplicates()       
 events_frac_predict = events_frac_predict.drop_duplicates()  
 
-events_predict.to_csv("events_th_2004_2017.csv", sep='\t', encoding='utf-8') 
-events_frac_predict.to_csv("events_frac_th_2004_2017.csv", sep='\t', encoding='utf-8')   
+events_predict.to_csv("events_th3_2004_2017.csv", sep='\t', encoding='utf-8') 
+events_frac_predict.to_csv("events_frac_th3_2004_2017.csv", sep='\t', encoding='utf-8')   
 
-pickle.dump(events_frac_predict,open("events_frac_th_2004_2017.p", "wb"))
-pickle.dump(events_predict,open("events_th_2004_2017.p", "wb"))
+pickle.dump(events_frac_predict,open("events_frac_th3_2004_2017.p", "wb"))
+pickle.dump(events_predict,open("events_th3_2004_2017.p", "wb"))
     
-mcplt.plot_obs_bz_tau(events_predict, 'bzm_vs_tau_th_2004_2017.pdf')
-mcplt.plot_predict_bz_tau_frac(events_frac_predict, 'bztau_predict_th_2004_2017.pdf')
+mcplt.plot_obs_bz_tau(events_predict, 'bzm_vs_tau_th3_2004_2017.pdf')
+mcplt.plot_predict_bz_tau_frac(events_frac_predict, 'bztau_predict_th3_2004_2017.pdf')
+mcplt.plot_obs_vs_predict(events_frac_predict, fname='th3_2004_2017')
 
 
 
@@ -101,32 +102,38 @@ mcplt.plot_predict_bz_tau_frac(events_frac_predict, 'bztau_predict_th_2004_2017.
 
 #### step 3a rerun predict witout reading in the data again
 
-#first strip the predict from event_frac_predict
-cols_to_keep = ['evt_index', 'data_index','start', 'bzm', 'tau', 'istart', 'iend',\
-                'end', 'dst', 'dstdur', 'geoeff', 'bzm_predicted', 'frac', 'i_bzmax', \
-                'tau_predicted']
-events_frac = events_frac_predict.filter(cols_to_keep,axis=1)
-events_frac_predict2 = predict_geoeff(events_frac, pdf)
+#==============================================================================
+# #first strip the predict from event_frac_predict
+# cols_to_keep = ['evt_index', 'data_index','start', 'bzm', 'tau', 'istart', 'iend',\
+#                 'end', 'dst', 'dstdur', 'geoeff', 'bzm_predicted', 'frac', 'i_bzmax', \
+#                 'tau_predicted']
+# events_frac = events_frac_predict.filter(cols_to_keep,axis=1)
+# events_frac_predict2 = predict_geoeff(events_frac, pdf)
+#==============================================================================
 
 #### Run some numbers
-w = np.where(events_frac_predict2.frac == 1.0)[0]
+w = np.where(events_frac_predict.frac == 1.0)[0]
 
 #boxplot
-events_frac_predict2.boxplot(column = 'P1_scaled', by = 'geoeff')
+ax = events_frac_predict.boxplot(column = 'P1_scaled', by = 'geoeff')
+fig = ax.get_figure()
+fig.savefig('P1_boxplot_th2_2004_2017.pdf', format = 'pdf')
+plt.close('all')
+
 
 #contingency table
-thresh = 0.2
-pd.crosstab(events_frac_predict2.geoeff.iloc[w] == 1.0, events_frac_predict2.P1_scaled.iloc[w]> thresh)
+thresh = 0.15
+pd.crosstab(events_frac_predict.geoeff.iloc[w] == 1.0, events_frac_predict.P1_scaled.iloc[w]> thresh)
 
 #skill score
-a = len(np.where((events_frac_predict2.geoeff.iloc[w] == 1.0) & (events_frac_predict2.P1_scaled.iloc[w]> thresh))[0])
-b = len(np.where((events_frac_predict2.geoeff.iloc[w] == 0.0) & (events_frac_predict2.P1_scaled.iloc[w]> thresh))[0])
-c = len(np.where((events_frac_predict2.geoeff.iloc[w] == 1.0) & (events_frac_predict2.P1_scaled.iloc[w]< thresh))[0])
+a = len(np.where((events_frac_predict.geoeff.iloc[w] == 1.0) & (events_frac_predict.P1_scaled.iloc[w]> thresh))[0])
+b = len(np.where((events_frac_predict.geoeff.iloc[w] == 0.0) & (events_frac_predict.P1_scaled.iloc[w]> thresh))[0])
+c = len(np.where((events_frac_predict.geoeff.iloc[w] == 1.0) & (events_frac_predict.P1_scaled.iloc[w]< thresh))[0])
 
 CSI = a / (a+b+c)
 
 #incorrect events
-missed, false = sort_incorrect(events_frac_predict2)
+missed, false = sort_incorrect(events_frac_predict)
 
 ##plots
 mcplt.plot_bzm_vs_tau_skill(events_frac_predict2, fname = '2004_2017')
@@ -147,24 +154,37 @@ t_mean_diff = np.mean(np.abs(evts.tau - evts.tau_predicted))
 t_stdev_diff = np.std(np.abs(evts.tau - evts.tau_predicted)) 
 
 
-#
+#plot dtheta
+evts = events_frac_predict[['bzm','bzm_predicted','tau','tau_predicted','frac','dtheta','theta_max']]\
+                    .iloc[np.where((events_frac_th2.geoeff == 1))[0]]
 
+ax = evts.iloc[np.where(evts.theta_max < 0.0)[0]].boxplot(column = 'dtheta', by='frac')
+fig = ax.get_figure()
+fig.savefig('dtheta_th2_1998_2017.pdf', format = 'pdf')
+plt.close('all')
+
+#plot max theta
+ax = evts.iloc[np.where(evts.theta_max < 0.0)[0]].boxplot(column = 'theta_max', return_type='axes')
+fig = ax.get_figure()
+fig.savefig('theta_max_th2_1998_2017.pdf', format = 'pdf')
+plt.close('all')
 
 
 def sort_incorrect(events_frac):
     
     import shutil
     import calendar
+    import datetime as datetime
     
     #missed = events_frac_predict2.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
     #false = events_frac_predict2.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
 
-    missed = events_frac_predict2.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
-    false = events_frac_predict2.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
+    missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
+    false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
     
-    dd_longterm = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm/'
-    dd_missed = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/missed/'
-    dd_false = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/false/'
+    dd_longterm = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_th2/'
+    dd_missed = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/missed_th2/'
+    dd_false = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/false_th2/'
     
     for i in range(len(missed)):
                 
@@ -190,7 +210,7 @@ def sort_incorrect(events_frac):
         false_str = dd_longterm + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
         new_loc = dd_false + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
         
-        shutil.copyfile( missed_str, new_loc) 
+        shutil.copyfile( false_str, new_loc) 
 
     return missed, false
     

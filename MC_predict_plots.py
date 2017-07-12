@@ -151,7 +151,7 @@ def plot_obs_bz_tau_dst(events, outname = 'bzm_vs_tau_vs_dst', fname = ''):
     plt.close()    
    
     
-def plot_bzm_vs_tau_skill(events_frac, outname = 'bzm_vs_tau_skill', fname = ''):
+def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'bzm_vs_tau_skill', fname = ''):
     
     """
     Plots the magnetic cloud actual bzm vs tau for each fraction of an 
@@ -165,10 +165,10 @@ def plot_bzm_vs_tau_skill(events_frac, outname = 'bzm_vs_tau_skill', fname = '')
     
     """
      
-    corpos = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='start')[['bzm','tau','dst']]
-    corneg = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='start')[['bzm','tau','dst']]
-    missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='start')[['bzm','tau','dst']]
-    false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='start')[['bzm','tau','dst']]
+    corpos = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled >' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+    corneg = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+    missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+    false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > ' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
                            
     fontP = FontProperties()                #legend
     fontP.set_size('medium')                       
@@ -224,50 +224,48 @@ def plot_obs_vs_predict(events_frac, outname = 'bzm_obs_vs_predicted', fname = '
     return None
 
 
-#==============================================================================
-# def write_report(events_frac, outname = 'bzm_obs_vs_predicted', fname = ''):
-#     
-#        
-#     ##open the html file
-#     f = open(outname + '_' + fname + '.html', 'w')
-#      
-#     f.write('<!DOCTYPE html>')
-#     f.write('<html>')
-#     f.write('<head>')
-#     f.write('<title>Page Title</title>')
-#     f.write('</head>')
-#     f.write('<body>')
-#     
-#     #skill score
-#     f.write('   <p>Skill Score ' + str(skill) + ' </p>')
-#     
-#     #contingency table
-#     f.write('   <table border="1">')
-#     f.write('   <tr>')
-#     f.write('       <th>Obs\Pred</th>')
-#     f.write('       <th colspan="2">Nongeoeff</th>')
-#     f.write('       <th colspan="2">Geoeff</th>')
-#     f.write('   </tr>')   
-#     f.write('   <tr>')
-#     f.write('       <th>Nongeoeff</th>')
-#     f.write('       <td>'+ str(len(corneg)) +'</td>')
-#     f.write('       <td>'+ str(len(false)) +'</td>')
-#     f.write('   </tr>')  
-#     f.write('   <tr>')
-#     f.write('       <th>Geoeff</th>')
-#     f.write('       <td>'+ str(len(missed)) +'</td>')
-#     f.write('       <td>'+ str(len(corpos)) +'</td>')
-#     f.write('   </tr>')      
-#     f.write('  </table>\n')
-#     
-#     #    
-# 
-# 
-#     f.write('</body>')
-#     f.write('</html>')
-# 
-#     f.close()    
-#     
-#     
-#==============================================================================
+def write_report(events_frac, outname = 'bzm_obs_vs_predicted', fname = ''):
+    
+       
+    ##open the html file
+    f = open(outname + '_' + fname + '.html', 'w')
+     
+    f.write('<!DOCTYPE html>')
+    f.write('<html>')
+    f.write('<head>')
+    f.write('<title>Page Title</title>')
+    f.write('</head>')
+    f.write('<body>')
+    
+    #skill score
+    f.write('   <p>Skill Score ' + str(skill) + ' </p>')
+    
+    #contingency table
+    f.write('   <table border="1">')
+    f.write('   <tr>')
+    f.write('       <th>Obs\Pred</th>')
+    f.write('       <th colspan="2">Nongeoeff</th>')
+    f.write('       <th colspan="2">Geoeff</th>')
+    f.write('   </tr>')   
+    f.write('   <tr>')
+    f.write('       <th>Nongeoeff</th>')
+    f.write('       <td>'+ str(len(corneg)) +'</td>')
+    f.write('       <td>'+ str(len(false)) +'</td>')
+    f.write('   </tr>')  
+    f.write('   <tr>')
+    f.write('       <th>Geoeff</th>')
+    f.write('       <td>'+ str(len(missed)) +'</td>')
+    f.write('       <td>'+ str(len(corpos)) +'</td>')
+    f.write('   </tr>')      
+    f.write('  </table>\n')
+    
+    #    
+
+
+    f.write('</body>')
+    f.write('</html>')
+
+    f.close()    
+    
+    
     
