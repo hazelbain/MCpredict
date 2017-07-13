@@ -93,7 +93,8 @@ pickle.dump(events_predict,open("events_th3_2004_2017.p", "wb"))
 mcplt.plot_obs_bz_tau(events_predict, 'bzm_vs_tau_th3_2004_2017.pdf')
 mcplt.plot_predict_bz_tau_frac(events_frac_predict, 'bztau_predict_th3_2004_2017.pdf')
 mcplt.plot_obs_vs_predict(events_frac_predict, fname='th3_2004_2017')
-
+mcplt.plot_bzm_vs_tau_skill(events_frac_predict, P1 = 0.1, fname = 'th3_2004_2017')
+mcplt.plot_bzmp_vs_taup_skill(events_frac_predict, P1 = 0.1, fname = 'th3_2004_2017')
 
 
 
@@ -117,12 +118,12 @@ w = np.where(events_frac_predict.frac == 1.0)[0]
 #boxplot
 ax = events_frac_predict.boxplot(column = 'P1_scaled', by = 'geoeff')
 fig = ax.get_figure()
-fig.savefig('P1_boxplot_th2_2004_2017.pdf', format = 'pdf')
+fig.savefig('P1_boxplot_th3_2004_2017.pdf', format = 'pdf')
 plt.close('all')
 
 
 #contingency table
-thresh = 0.15
+thresh = 0.1
 pd.crosstab(events_frac_predict.geoeff.iloc[w] == 1.0, events_frac_predict.P1_scaled.iloc[w]> thresh)
 
 #skill score
@@ -136,7 +137,7 @@ CSI = a / (a+b+c)
 missed, false = sort_incorrect(events_frac_predict)
 
 ##plots
-mcplt.plot_bzm_vs_tau_skill(events_frac_predict2, fname = '2004_2017')
+
 
 
 
@@ -155,18 +156,18 @@ t_stdev_diff = np.std(np.abs(evts.tau - evts.tau_predicted))
 
 
 #plot dtheta
-evts = events_frac_predict[['bzm','bzm_predicted','tau','tau_predicted','frac','dtheta','theta_max']]\
-                    .iloc[np.where((events_frac_th2.geoeff == 1))[0]]
+evts = events_frac_predict[['bzm','bzm_predicted','tau','tau_predicted','frac','dtheta_z','theta_z_max']]\
+                    .iloc[np.where((events_frac_predict.geoeff == 1))[0]]
 
-ax = evts.iloc[np.where(evts.theta_max < 0.0)[0]].boxplot(column = 'dtheta', by='frac')
+ax = evts.iloc[np.where(evts.theta_z_max < 0.0)[0]].boxplot(column = 'dtheta_z', by='frac')
 fig = ax.get_figure()
-fig.savefig('dtheta_th2_1998_2017.pdf', format = 'pdf')
+fig.savefig('dtheta_th3_2004_2017.pdf', format = 'pdf')
 plt.close('all')
 
 #plot max theta
-ax = evts.iloc[np.where(evts.theta_max < 0.0)[0]].boxplot(column = 'theta_max', return_type='axes')
+ax = evts.iloc[np.where(evts.theta_z_max < 0.0)[0]].boxplot(column = 'theta_z_max', return_type='axes')
 fig = ax.get_figure()
-fig.savefig('theta_max_th2_1998_2017.pdf', format = 'pdf')
+fig.savefig('theta_max_th3_2004_2017.pdf', format = 'pdf')
 plt.close('all')
 
 
