@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 
-def plot_predict_bz_tau_frac(events_frac, outname = 'bztau_predict.pdf'):
+def plot_predict_bz_tau_frac(events_frac, outname = 'bztau_predict', fname = ''):
     
     """
     
@@ -44,28 +44,79 @@ def plot_predict_bz_tau_frac(events_frac, outname = 'bztau_predict.pdf'):
     bt10_predict = events_frac['bzm_predicted'].iloc[w10]*events_frac['tau_predicted'].iloc[w10] 
 
 
+    fig, ((ax0, ax1), (ax2, ax3), (ax4, ax5)) = plt.subplots(3, 2, figsize = (10,15))
+
     fontP = FontProperties()                #legend
     fontP.set_size('medium')                       
                            
-    plt.scatter(bt, bt2_predict, c = 'purple', label = '0.2 event')
-    plt.scatter(bt, bt4_predict, c = 'b', label = '0.4 event')
-    plt.scatter(bt, bt6_predict, c = 'g', label = '0.6 event')
-    plt.scatter(bt, bt8_predict, c = 'orange', label = '0.8 event')  
-    plt.scatter(bt, bt8_predict, c = 'r', label = '1.0 event')                         
-    
-    plt.plot(bt, bt, c = 'black')      
-    
-    #plt.ylim(0,60)
-    #plt.xlim(-60,60)
-    plt.title("BzmTau obs vs predicted as fraction \n of event duration (Geoeff = 1)")
-    plt.xlabel("$\mathrm{B_{zm} tau (obs)}$")
-    plt.ylabel("$\mathrm{B_{zm} tau (predict)}$")
-    leg = plt.legend(loc='upper left', prop = fontP, fancybox=True, \
+    ax0.scatter(bt, bt2_predict, c = 'purple', label = '0.2 event')
+    ax0.plot(bt, bt, c = 'black') 
+    ax0.set_ylim(-2000,1000)
+    ax0.set_xlim(-900,200)
+    #ax0.set_title("BzmTau obs vs predicted as fraction \n of event duration (Geoeff = 1)")
+    ax0.set_xlabel("$\mathrm{B_{zm} tau (obs)}$")
+    ax0.set_ylabel("$\mathrm{B_{zm} tau (predict)}$")
+    leg0 = ax0.legend(loc='upper left', prop = fontP, fancybox=True, \
                      frameon=True, scatterpoints = 1 )
-    leg.get_frame().set_alpha(0.5)
+    leg0.get_frame().set_alpha(0.5)
+    
+    ax1.scatter(bt, bt4_predict, c = 'b', label = '0.4 event')
+    ax1.plot(bt, bt, c = 'black') 
+    ax1.set_ylim(-2000,1000)
+    ax1.set_xlim(-900,200)
+    #ax1.set_title("BzmTau obs vs predicted as fraction \n of event duration (Geoeff = 1)")
+    ax1.set_xlabel("$\mathrm{B_{zm} tau (obs)}$")
+    ax1.set_ylabel("$\mathrm{B_{zm} tau (predict)}$")
+    leg1 = ax1.legend(loc='upper left', prop = fontP, fancybox=True, \
+                     frameon=True, scatterpoints = 1 )
+    leg1.get_frame().set_alpha(0.5)
+    
+    ax2.scatter(bt, bt6_predict, c = 'g', label = '0.6 event')
+    ax2.plot(bt, bt, c = 'black')  
+    ax2.set_ylim(-2000,1000)
+    ax2.set_xlim(-900,200)
+    #ax2.set_title("BzmTau obs vs predicted as fraction \n of event duration (Geoeff = 1)")
+    ax2.set_xlabel("$\mathrm{B_{zm} tau (obs)}$")
+    ax2.set_ylabel("$\mathrm{B_{zm} tau (predict)}$")
+    leg2 = ax2.legend(loc='upper left', prop = fontP, fancybox=True, \
+                     frameon=True, scatterpoints = 1 )
+    leg2.get_frame().set_alpha(0.5)    
+    
+    ax3.scatter(bt, bt8_predict, c = 'orange', label = '0.8 event')  
+    ax3.plot(bt, bt, c = 'black') 
+    ax3.set_ylim(-2000,1000)
+    ax3.set_xlim(-900,200)
+    #ax3.set_title("BzmTau obs vs predicted as fraction \n of event duration (Geoeff = 1)")
+    ax3.set_xlabel("$\mathrm{B_{zm} tau (obs)}$")
+    ax3.set_ylabel("$\mathrm{B_{zm} tau (predict)}$")
+    leg3 = ax3.legend(loc='upper left', prop = fontP, fancybox=True, \
+                     frameon=True, scatterpoints = 1 )
+    leg3.get_frame().set_alpha(0.5) 
+    
+    ax4.scatter(bt, bt8_predict, c = 'r', label = '1.0 event')        
+    ax4.plot(bt, bt, c = 'black') 
+    ax4.set_ylim(-2000,1000)
+    ax4.set_xlim(-900,200)
+    #ax4.set_title("BzmTau obs vs predicted as fraction \n of event duration (Geoeff = 1)")
+    ax4.set_xlabel("$\mathrm{B_{zm} tau (obs)}$")
+    ax4.set_ylabel("$\mathrm{B_{zm} tau (predict)}$")
+    leg4 = ax4.legend(loc='upper left', prop = fontP, fancybox=True, \
+                     frameon=True, scatterpoints = 1 )
+    leg4.get_frame().set_alpha(0.5)                  
+    
+    ax5.scatter(bt, bt10_predict, c = 'r', label = '1.0 event')        
+    ax5.plot(bt, bt, c = 'black') 
+    ax5.set_ylim(-2000,1000)
+    ax5.set_xlim(-900,200)
+    #ax4.set_title("BzmTau obs vs predicted as fraction \n of event duration (Geoeff = 1)")
+    ax5.set_xlabel("$\mathrm{B_{zm} tau (obs)}$")
+    ax5.set_ylabel("$\mathrm{B_{zm} tau (predict)}$")
+    leg5 = ax5.legend(loc='upper left', prop = fontP, fancybox=True, \
+                     frameon=True, scatterpoints = 1 )
+    leg5.get_frame().set_alpha(0.5)  
     
     #plt.show()
-    plt.savefig(outname, format='pdf')
+    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()
     
@@ -169,23 +220,65 @@ def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'bzm_vs_tau_skill', f
     corneg = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
     missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
     false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > ' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
-                           
-    fontP = FontProperties()                #legend
-    fontP.set_size('medium')                       
-                                               
-    plt.scatter(corneg['bzm'], corneg['tau'], c = 'b', label = 'CorNeg' )                         
-    plt.scatter(corpos['bzm'], corpos['tau'], c = 'r', label = 'CorPos')
-    plt.scatter(missed['bzm'], missed['tau'], c = 'g', label = 'Missed' )                         
-    plt.scatter(false['bzm'], false['tau'], c = 'orange', label = 'False')
-    plt.ylim(0,100)
-    plt.xlim(-60,60)
-    plt.xlabel("$\mathrm{B_{zm}}$ (nT)")
-    plt.ylabel("Duration (hr)")
-    leg = plt.legend(loc='upper right', prop = fontP, fancybox=True, \
-                     frameon=True, scatterpoints = 1 )
-    leg.get_frame().set_alpha(0.5)
     
-    plt.savefig(outname + '_' + fname + '.pdf', format='pdf')
+    corpos_p = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled >' + str(P1)).sort_values(by='start')[['bzm_predicted','tau_predicted','dst']]
+    corneg_p = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm_predicted','tau_predicted','dst']]
+    missed_p = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm_predicted','tau_predicted','dst']]
+    false_p = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > ' + str(P1)).sort_values(by='start')[['bzm_predicted','tau_predicted','dst']]
+    
+    CSI = len(corpos) / (len(corpos)+len(false)+len(missed))
+                       
+    fontP = FontProperties()                #legend
+    fontP.set_size('x-small')                       
+    
+    fig, (ax0, ax1) = plt.subplots(1, 2, figsize = (10,5))
+    
+
+    ##plots with actual values                                       
+    ax0.scatter(corneg['bzm'], corneg['tau'], c = 'b', label = 'CorNeg' )                         
+    ax0.scatter(corpos['bzm'], corpos['tau'], c = 'r', label = 'CorPos')
+    ax0.scatter(missed['bzm'], missed['tau'], c = 'g', label = 'Missed' )                         
+    ax0.scatter(false['bzm'], false['tau'], c = 'orange', label = 'False')
+    ax0.set_title("Observed parameters")
+    ax0.set_ylim(0,100)
+    ax0.set_xlim(-60,60)
+    ax0.set_xlabel("$\mathrm{B_{zm}}$ (nT)")
+    ax0.set_ylabel("Duration (hr)")
+    leg0 = ax0.legend(loc='upper right', prop = fontP, fancybox=True, \
+                     frameon=True, scatterpoints = 1 )
+    leg0.get_frame().set_alpha(0.5)
+    
+    #add a table with the skill scores
+    cell_text = [[str(len(corneg)), str(len(false))],\
+                 [str(len(missed)), str(len(corpos))]]
+    
+    table0 = ax0.table(cellText = cell_text, \
+              cellColours=[['b','orange'],['g','r']],\
+              rowLabels=['NG','G'], \
+              colLabels=['NG','G'],\
+              loc='center left',\
+              colLoc='center', rowLoc='center',\
+              bbox = [0.075, 0.75, 0.25, 0.2])
+    table0.scale(0.25, 0.5)
+    table0.set_fontsize(10)
+    
+    ax0.annotate("CSI = %.2f" % CSI, xy=(0.1,0.96), xycoords='axes fraction', color='Black', fontsize=10)
+    
+    #plots with predicted values
+    ax1.scatter(corneg_p['bzm_predicted'], corneg_p['tau_predicted'], c = 'b', label = 'CorNeg' )                         
+    ax1.scatter(corpos_p['bzm_predicted'], corpos_p['tau_predicted'], c = 'r', label = 'CorPos')
+    ax1.scatter(missed_p['bzm_predicted'], missed_p['tau_predicted'], c = 'g', label = 'Missed' )                         
+    ax1.scatter(false_p['bzm_predicted'], false_p['tau_predicted'], c = 'orange', label = 'False')
+    ax1.set_title("Predicted parameters")
+    ax1.set_ylim(0,100)
+    ax1.set_xlim(-60,60)
+    ax1.set_xlabel("$\mathrm{B_{zm}}$ predicted (nT)")
+    ax1.set_ylabel("Duration predicted (hr)")
+    leg1 = ax1.legend(loc='upper right', prop = fontP, fancybox=True, \
+                     frameon=True, scatterpoints = 1 )
+    leg1.get_frame().set_alpha(0.5)
+        
+    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()
     
@@ -201,7 +294,7 @@ def plot_obs_vs_predict(events_frac, outname = 'bzm_obs_vs_predicted', fname = '
     fontP = FontProperties()                #legend
     fontP.set_size('medium')                       
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 4))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
                        
     ax1.scatter(evts['bzm'], evts['bzm_predicted'])                       
     ax1.set_ylim(-60,60)
@@ -217,50 +310,76 @@ def plot_obs_vs_predict(events_frac, outname = 'bzm_obs_vs_predicted', fname = '
     ax2.set_ylabel("tau obs (nT)")
     ax2.set_title("Tau obs vs predicted")
 
-    plt.savefig(outname + '_' + fname + '.pdf', format='pdf')
+    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()  
     
     return None
 
 
-def write_report(events_frac, outname = 'bzm_obs_vs_predicted', fname = ''):
+def write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P1 = 0.2):
     
-       
+    
+    ##make the plots   
+    plot_predict_bz_tau_frac(events_frac, fname = fname)
+    plot_obs_vs_predict(events_frac, fname = fname)
+    plot_bzm_vs_tau_skill(events_frac, P1 = P1, fname = fname)
+    
+    #skill
+    corpos = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled >' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+    corneg = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+    missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+    false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > ' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+    
+    CSI = len(corpos) / (len(corpos)+len(false)+len(missed))
+    
+    
     ##open the html file
     f = open(outname + '_' + fname + '.html', 'w')
      
-    f.write('<!DOCTYPE html>')
-    f.write('<html>')
-    f.write('<head>')
-    f.write('<title>Page Title</title>')
-    f.write('</head>')
-    f.write('<body>')
+    f.write('<!DOCTYPE html>\n')
+    f.write('<html>\n')
+    f.write('<head>\n')
+    f.write('<title>MC predict Test Results '+fname+'</title>\n')
+    f.write('</head>\n')
+    f.write('<body>\n')
     
     #skill score
-    f.write('   <p>Skill Score ' + str(skill) + ' </p>')
+#==============================================================================
+#     f.write('   <p>Skill Score %.2f </p>\n' % CSI )
+#==============================================================================
     
     #contingency table
-    f.write('   <table border="1">')
-    f.write('   <tr>')
-    f.write('       <th>Obs\Pred</th>')
-    f.write('       <th colspan="2">Nongeoeff</th>')
-    f.write('       <th colspan="2">Geoeff</th>')
-    f.write('   </tr>')   
-    f.write('   <tr>')
-    f.write('       <th>Nongeoeff</th>')
-    f.write('       <td>'+ str(len(corneg)) +'</td>')
-    f.write('       <td>'+ str(len(false)) +'</td>')
-    f.write('   </tr>')  
-    f.write('   <tr>')
-    f.write('       <th>Geoeff</th>')
-    f.write('       <td>'+ str(len(missed)) +'</td>')
-    f.write('       <td>'+ str(len(corpos)) +'</td>')
-    f.write('   </tr>')      
-    f.write('  </table>\n')
+#==============================================================================
+#     f.write('   <table border="1">\n')
+#     f.write('   <caption> Contingency Table </caption>\n')
+#     f.write('   <thead>')
+#     f.write('   <tr>')
+#     f.write('       <th scope="col">Obs\Pred</th>\n')
+#     f.write('       <th scope="col">Nongeoeff</th>\n')
+#     f.write('       <th scope="col">Geoeff</th>\n')
+#     f.write('   </tr>\n')   
+#     f.write('   </thead>\n')
+#     f.write('   <tbody>\n')
+#     f.write('   <tr>\n')
+#     f.write('       <th scope="row">Nongeoeff</th>\n')
+#     f.write('       <td>'+ str(len(corneg)) +'</td>\n')
+#     f.write('       <td>'+ str(len(false)) +'</td>\n')
+#     f.write('   </tr>\n')  
+#     f.write('   <tr>\n')
+#     f.write('       <th scope="row">Geoeff</th>\n')
+#     f.write('       <td>'+ str(len(missed)) +'</td>\n')
+#     f.write('       <td>'+ str(len(corpos)) +'</td>\n')
+#     f.write('   </tr>\n') 
+#     f.write('   </tbody>\n')     
+#     f.write('  </table>\n')
+#     
+#==============================================================================
     
-    #    
-
+    #images 
+    f.write('  <img src="bzm_vs_tau_skill' + '_' + fname + '.jpeg" alt="bzm_vs_tau_skill">\n\n\n')
+    f.write('  <img src="bzm_obs_vs_predicted' + '_' + fname + '.jpeg" alt="bzm_obs_vs_predicted" ">\n\n\n')
+    f.write('  <img src="bztau_predict' + '_' + fname + '.jpeg" alt="bztau_predict">\n\n\n')
 
     f.write('</body>')
     f.write('</html>')
