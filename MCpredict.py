@@ -248,8 +248,6 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
             continue
 
         #print("----Event of correct duration found----")
-                
-        start_date  = datetime.strftime(data['date'][i], "%Y-%m-%d %H:%M")
         
         #now try and predict the duration of the bz component
         predict_duration(data, istart, iend)
@@ -258,7 +256,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
         istart_y = By_start(data, istart, iend)
         
         #predict the by event duration
-        predict_duration(data, istart_y, iend_y, component = 'y')
+        #predict_duration(data, istart_y, iend_y, component = 'y')
         
 
         if icme_event(istart, iend, len(data['date'])):

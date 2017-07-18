@@ -316,6 +316,31 @@ def plot_obs_vs_predict(events_frac, outname = 'bzm_obs_vs_predicted', fname = '
     
     return None
 
+def plot_theta(events_frac, fname = ''):
+    
+    evts = events_frac[['bzm','bzm_predicted','tau','tau_predicted','frac','dtheta_z','theta_z_max']]\
+                        .iloc[np.where((events_frac.geoeff == 1))[0]]
+    
+    ax = evts.iloc[np.where(evts.theta_z_max < 0.0)[0]].boxplot(column = 'dtheta_z', by='frac')
+    fig = ax.get_figure()
+    fig.savefig('dtheta_'+fname+'.jpeg', format = 'jpeg')
+    plt.close('all')
+    
+    #plot max theta
+    ax = evts.iloc[np.where(evts.theta_z_max < 0.0)[0]].boxplot(column = 'theta_z_max', return_type='axes')
+    fig = ax.get_figure()
+    fig.savefig('theta_max_'+fname+'.jpeg', format = 'jpeg')
+    plt.close('all')
+
+def plot_boxplot(events_frac,fname=''):
+    
+    #boxplot
+    #w = np.where(events_frac.frac == 1.0)[0]
+    ax = events_frac.boxplot(column = 'P1_scaled', by = 'geoeff')
+    fig = ax.get_figure()
+    fig.savefig('P1_boxplot_'+fname+'.pdf', format = 'pdf')
+    plt.close('all')
+    
 
 def write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P1 = 0.2):
     
@@ -324,14 +349,19 @@ def write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P
     plot_predict_bz_tau_frac(events_frac, fname = fname)
     plot_obs_vs_predict(events_frac, fname = fname)
     plot_bzm_vs_tau_skill(events_frac, P1 = P1, fname = fname)
+    plot_theta(events_frac, fname = fname)
+    
+    missed, false = sort_incorrect(events_frac, fname = fname)
     
     #skill
-    corpos = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled >' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
-    corneg = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
-    missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
-    false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > ' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
-    
-    CSI = len(corpos) / (len(corpos)+len(false)+len(missed))
+#==============================================================================
+#     corpos = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled >' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+#     corneg = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+#     missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled <'  + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+#     false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > ' + str(P1)).sort_values(by='start')[['bzm','tau','dst']]
+#     
+#     CSI = len(corpos) / (len(corpos)+len(false)+len(missed))
+#==============================================================================
     
     
     ##open the html file
@@ -380,11 +410,65 @@ def write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P
     f.write('  <img src="bzm_vs_tau_skill' + '_' + fname + '.jpeg" alt="bzm_vs_tau_skill">\n\n\n')
     f.write('  <img src="bzm_obs_vs_predicted' + '_' + fname + '.jpeg" alt="bzm_obs_vs_predicted" ">\n\n\n')
     f.write('  <img src="bztau_predict' + '_' + fname + '.jpeg" alt="bztau_predict">\n\n\n')
+    f.write('  <img src="dtheta_' + fname + '.jpeg" alt="dtheta">\n\n\n')
+    f.write('  <img src="theta_max_' + fname + '.jpeg" alt="theta_max">\n\n\n')
 
     f.write('</body>')
     f.write('</html>')
 
-    f.close()    
+    f.close()   
+    
+    return missed, false
+  
     
     
+    
+def sort_incorrect(events_frac, fname = ''):
+    
+    import shutil
+    import calendar
+    import datetime as datetime
+    import os
+    
+    #missed = events_frac_predict2.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
+    #false = events_frac_predict2.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
+
+    missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
+    false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
+    
+    dd_longterm = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_th2/'
+    dd_missed = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/missed_'+fname+'/'
+    dd_false = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/false_'+fname+'/'
+    
+    os.makedir(dd_missed)
+    os.makedir(dd_false)
+    
+    
+    for i in range(len(missed)):
+                
+        #construct filename
+        year = missed.start.iloc[i].year
+        mnth = missed.start.iloc[i].month                
+        cal = calendar.Calendar()
+        week_begin = [j[0] for j in cal.monthdatescalendar(year, mnth)]
+        fdate = week_begin[np.max(np.where(missed.start.iloc[i].date() >= np.asarray(week_begin)))]
+        missed_str = dd_longterm + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
+        new_loc = dd_missed + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
+        
+        shutil.copyfile( missed_str, new_loc) 
+        
+    for i in range(len(false)):
+                
+        #construct filename
+        year = missed.start.iloc[i].year
+        mnth = missed.start.iloc[i].month                
+        cal = calendar.Calendar()
+        week_begin = [j[0] for j in cal.monthdatescalendar(year, mnth)]
+        fdate = week_begin[np.max(np.where(missed.start.iloc[i].date() >= np.asarray(week_begin)))]
+        false_str = dd_longterm + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
+        new_loc = dd_false + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
+        
+        shutil.copyfile( false_str, new_loc) 
+
+    return missed, false    
     
