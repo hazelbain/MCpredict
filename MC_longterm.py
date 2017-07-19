@@ -25,34 +25,51 @@ import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff 
 
 
-def train_and_validate(fname=fname, revalidate=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
+def train_and_validate(pdf, fname='', revalidate=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
     
-    fname = 'th3'
+    #fname = 'th3'
     
-    ew=[2]
-    nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    #ew=[2]
+    #nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     
-    #train events
-    events, events_frac, pdf = train_events(fname=fname, ew=ew, nw=nw)
-    
+
+
     if revalidate == 0:
-        #validate events
+        
+        #train events
+        #events, events_frac, pdf = train_events(fname=fname, ew=e, nw=n)
+                
+        #validate events  -- only need to fit the events once then revalidate with different pdfs
         events_predict, events_frac_predict = validate_events(pdf, fname=fname,\
-                    ew=ew, nw=nw)
+                ew=[ew[0]], nw=[nw[0]])
+
+        ##write report
+        #mcplt.write_report(events_frac_predict, fname=fname+"_2004_2017_ew"+str(ew[0])+"_nw"+str(nw[0]), P1 = 0.2)
+        
+        
+
+        #return events, events_frac, events_predict, events_frac_predict
+        return events_predict, events_frac_predict
+
     else:
-        #reevaluate
-        events_frac_predict = pickle.load(open("events_frac_predict_th3_2004_2017.p","rb"))
-        events_frac_predict2 = revalidate_events(events_frac_predict, fname=fname, \
-                    ew=ew, nw=nw, P1 = 0.2)
-    
-    
+        
+        for e in ew:
+            for n in nw:
+                        
+                #reevaluate
+                events_frac_predict = pickle.load(open("events_frac_predict_"+fname+"_2004_2017_ew"+str(ew[0])+"_nw"+str(nw[0])+".p","rb"))
+                events_frac_predict2 = revalidate_events(events_frac_predict, fname=fname, \
+                        ew=ew, nw=nw, P1 = 0.2)
+                
+                ##write report
+                #mcplt.write_report(events_frac_predict, fname=fname+"_2004_2017_ew"+str(ew[0])+"_nw"+str(nw[0]), P1 = 0.2)
+            
+                return events_predict, events_frac_predict2
     
     ##!!!!!!!!! check the boxplot to get the threshold P1 !!!!!!!!###
-    
-    ## TODO: Add ew and nw to boxplot name
-    
-    ##write report
-    write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P1 = 0.2)
+
+
+
 
 
 def train_events(fname = '', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
@@ -78,21 +95,22 @@ def train_events(fname = '', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
     events = events.drop_duplicates()       
     events_frac = events_frac.drop_duplicates()      
         
-    events.to_csv("events_"+fname+"_1998_2004.csv", sep='\t', encoding='utf-8') 
-    events_frac.to_csv("events_frac_"+fname+"_1998_2004.csv", sep='\t', encoding='utf-8')   
+    events.to_csv("events_"+fname+"_1998_2004_ew"+str(ew)+"_nw"+str(nw)+".csv", sep='\t', encoding='utf-8') 
+    events_frac.to_csv("events_frac_"+fname+"_1998_2004_ew"+str(ew)+"_nw"+str(nw)+".csv", sep='\t', encoding='utf-8')   
     
-    pickle.dump(events_frac,open("events_frac_"+fname+"_1998_2004.p", "wb"))
-    pickle.dump(events,open("events_"+fname+"_1998_2004.p", "wb"))
+    pickle.dump(events_frac,open("events_frac_"+fname+"_1998_2004_ew"+str(ew)+"_nw"+str(nw)+".p", "wb"))
+    pickle.dump(events,open("events_"+fname+"_1998_2004_ew"+str(ew)+"_nw"+str(nw)+".p", "wb"))
         
-    mcplt.plot_obs_bz_tau(events, 'bzm_vs_tau_'+fname+'_1998_2004.pdf')
-    mcplt.plot_predict_bz_tau_frac(events_frac, 'bztau_predict_'+fname+'_1998_2004.pdf')
-    mcplt.plot_obs_vs_predict(events_frac, fname=fname+'_1998_2004')
+    mcplt.plot_obs_bz_tau(events, fname = fname+"_1998_2004_ew"+str(ew)+"_nw"+str(nw))
+    mcplt.plot_predict_bz_tau_frac(events_frac, fname = fname+"_1998_2004_ew"+str(ew)+"_nw"+str(nw))
+    mcplt.plot_obs_vs_predict(events_frac, fname=fname+'_1998_2004_ew'+str(ew)+'_nw'+str(nw))
+    mcplt.plot_theta(events_frac, fname = fname+'_1998_2004_ew'+str(ew)+'_nw'+str(nw))
     
     #### step 2: use the events_frac from above to generate the bayesian PDF
     
     for e in ew:
         for n in nw:
-            pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, fname=fname+'_1998_2004' )
+            pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, fname=fname+"_1998_2004_ew"+str(ew)+"_nw"+str(nw))
     
 
     return events, events_frac, pdf
@@ -104,11 +122,16 @@ def validate_events(pdf, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
     #### step 3: Use the generate PDFs to predict the geoeffectiveness of events
     #### in the remainder of the data set
     
+    if (type(ew) == int) or (type(ew) == float):
+        ew = [ew]
+    if (type(nw) == int) or (type(nw) == float):
+        nw = [nw]
+    
     #restore prediction matrix
     for e in ew:
         for n in nw:
     
-            pdf = pickle.load(open("Pdict_ew"+str(ew)+"_nw"+str(nw)+"_"+fname+".p","rb"))
+            pdf = pickle.load(open("Pdict_ew"+str(e)+"_nw"+str(n)+"_"+fname+"_1998_2004.p","rb"))
             
             t1 = ['1-jan-2004','1-jan-2005',\
                   '1-jan-2006','1-jan-2007','1-jan-2008','1-jan-2009','1-jan-2010','1-jan-2011','1-jan-2012','1-jan-2013',\
@@ -123,7 +146,7 @@ def validate_events(pdf, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
             for i in range(len(t1)):
                 
                 events_tmp, events_frac_tmp = find_events(t1[i], t2[i], pdf = pdf, plotting=1, \
-                                                    csv=0, livedb = 1, predict = 1)
+                                                    ew=e, nw=n, csv=0, livedb = 1, predict = 1)
                 
                 events_predict = events_predict.append(events_tmp)
                 events_frac_predict = events_frac_predict.append(events_frac_tmp)
@@ -131,21 +154,20 @@ def validate_events(pdf, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
             events_predict = events_predict.drop_duplicates()       
             events_frac_predict = events_frac_predict.drop_duplicates()  
             
-            ##TODO: Add ew and nw to save names
+            events_predict.to_csv("events_predict"+fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+".csv", sep='\t', encoding='utf-8') 
+            events_frac_predict.to_csv("events_frac_predict"+fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+".csv", sep='\t', encoding='utf-8')   
             
-            events_predict.to_csv("events_"+fname+"_2004_2017.csv", sep='\t', encoding='utf-8') 
-            events_frac_predict.to_csv("events_frac_"+fname+"_2004_2017.csv", sep='\t', encoding='utf-8')   
-            
-            pickle.dump(events_frac_predict,open("events_frac_"+fname+"_2004_2017.p", "wb"))
-            pickle.dump(events_predict,open("events_"+fname+"_2004_2017.p", "wb"))
+            pickle.dump(events_frac_predict,open("events_frac_predict"+fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+".p", "wb"))
+            pickle.dump(events_predict,open("events_predict"+fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+".p", "wb"))
                 
-            #mcplt.plot_obs_bz_tau(events_predict, 'bzm_vs_tau_th3_2004_2017.pdf')
-            #mcplt.plot_predict_bz_tau_frac(events_frac_predict, 'bztau_predict_th3_2004_2017.pdf')
-            #mcplt.plot_obs_vs_predict(events_frac_predict, fname='th3_2004_2017')
-            #mcplt.plot_bzm_vs_tau_skill(events_frac_predict, P1 = 0.1, fname = 'th3_2004_2017')
-            #mcplt.plot_bzmp_vs_taup_skill(events_frac_predict, P1 = 0.1, fname = 'th3_2004_2017')
+            #plots
+            #mcplt.plot_obs_bz_tau(events_predict, fname = fname+"_2004_2017_ew"+str(ew)+"_nw"+str(nw))
+            #mcplt.plot_predict_bz_tau_frac(events_frac_predict, fname = fname+"_2004_2017_ew"+str(ew)+"_nw"+str(nw))
+            #mcplt.plot_obs_vs_predict(events_frac_predict, fname=fname+'_2004_2017_ew'+str(ew)+'_nw'+str(nw))
+            #mcplt.plot_bzm_vs_tau_skill(events_frac_predict, P1 = 0.1, fname=fname+'_2004_2017_ew'+str(ew)+'_nw'+str(nw))
+            #mcplt.plot_theta(events_frac_predict, fname = fname+'_2004_2017_ew'+str(ew)+'_nw'+str(nw))
             
-            mcplt.plot_boxplot(events_frac_predict, fname = fname+'_2004_2017')
+            mcplt.plot_boxplot(events_frac_predict, fname = fname+"_2004_2017_ew"+str(e)+"_nw"+str(n))
     
     return events_predict, events_frac_predict
 
@@ -158,7 +180,7 @@ def revalidate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 
         for n in nw:
             
             #restore prediction matrix
-            pdf = pickle.load(open("Pdict_ew"+str(ew)+"_nw"+str(nw)+"_"+fname+".p","rb"))
+            pdf = pickle.load(open("Pdict_ew"+str(e)+"_nw"+str(n)+"_"+fname+"_1998_2004.p","rb"))
             
             #first strip the predict from event_frac_predict
             cols_to_keep = ['evt_index', 'data_index','start', 'bzm', 'tau', 'istart', 'iend',\
@@ -170,11 +192,18 @@ def revalidate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 
             events_frac_predict2 = predict_geoeff(events_frac, pdf)
 
             #save
-            events_frac_predict2.to_csv("events_frac_"+fname+"_2004_2017_"+str(ew)+"_nw"+str(nw)+".csv", sep='\t', encoding='utf-8')   
-            pickle.dump(events_frac_predict2,open("events_frac_"+fname+"_2004_2017_"+str(ew)+"_nw"+str(nw)+".p", "wb"))
+            events_frac_predict2.to_csv("events_frac_predict"+fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+".csv", sep='\t', encoding='utf-8')   
+            pickle.dump(events_frac_predict2,open("events_frac_predict"+fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+".p", "wb"))
+            
+            #plots
+            #mcplt.plot_obs_bz_tau(events_predict, fname = fname+"_2004_2017_ew"+str(ew)+"_nw"+str(nw))
+            #mcplt.plot_predict_bz_tau_frac(events_frac_predict, fname = fname+"_2004_2017_ew"+str(ew)+"_nw"+str(nw))
+            #mcplt.plot_obs_vs_predict(events_frac_predict, fname=fname+'_2004_2017_ew'+str(ew)+'_nw'+str(nw))
+            #mcplt.plot_bzm_vs_tau_skill(events_frac_predict, P1 = 0.1, fname=fname+'_2004_2017_ew'+str(ew)+'_nw'+str(nw))
+            #mcplt.plot_bzmp_vs_taup_skill(events_frac_predict, P1 = 0.1, fname=fname+'_2004_2017_ew'+str(ew)+'_nw'+str(nw))
             
             #boxplot
-            mcplt.plot_boxplot(events_frac_predict2, fname = fname+'_2004_2017_'+str(ew)+'_nw'+str(nw))
+            mcplt.plot_boxplot(events_frac_predict2, fname = fname+'_2004_2017_ew'+str(e)+'_nw'+str(n))
 
     
     return events_frac_predict2
@@ -229,7 +258,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                 etf = datetime.strftime(et, "%Y-%m-%d")
                 
                 try:
-                                                 
+                           
                     data, events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
                         dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
                         csv = csv, livedb = livedb, predict = predict,\

@@ -122,7 +122,7 @@ def plot_predict_bz_tau_frac(events_frac, outname = 'bztau_predict', fname = '')
     
     return None
     
-def plot_obs_bz_tau(events, outname = 'bzm_vs_tau.pdf'):
+def plot_obs_bz_tau(events, outname = 'bzm_vs_tau', fname=''):
     
     """
     Plots the magnetic cloud actual bzm vs tau
@@ -156,7 +156,7 @@ def plot_obs_bz_tau(events, outname = 'bzm_vs_tau.pdf'):
                      frameon=True, scatterpoints = 1 )
     leg.get_frame().set_alpha(0.5)
     
-    plt.savefig(outname, format='pdf')
+    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()
 
@@ -197,7 +197,7 @@ def plot_obs_bz_tau_dst(events, outname = 'bzm_vs_tau_vs_dst', fname = ''):
     cbar = plt.colorbar(c, label = "Dst")
     #cbar.set_label("Dst")   
     
-    plt.savefig(outname + '_' + fname + '.pdf', format='pdf')
+    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()    
    
@@ -338,7 +338,7 @@ def plot_boxplot(events_frac,fname=''):
     #w = np.where(events_frac.frac == 1.0)[0]
     ax = events_frac.boxplot(column = 'P1_scaled', by = 'geoeff')
     fig = ax.get_figure()
-    fig.savefig('P1_boxplot_'+fname+'.pdf', format = 'pdf')
+    fig.savefig('P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
     
 
