@@ -351,7 +351,7 @@ def write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P
     plot_bzm_vs_tau_skill(events_frac, P1 = P1, fname = fname)
     plot_theta(events_frac, fname = fname)
     
-    missed, false = sort_incorrect(events_frac, fname = fname)
+    #missed, false = sort_incorrect(events_frac, fname = fname)
     
     #skill
 #==============================================================================
@@ -418,8 +418,8 @@ def write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P
 
     f.close()   
     
-    return missed, false
-  
+    #return missed, false
+    return None
     
     
     
@@ -440,8 +440,8 @@ def sort_incorrect(events_frac, fname = ''):
     dd_missed = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/missed_'+fname+'/'
     dd_false = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/false_'+fname+'/'
     
-    os.makedir(dd_missed)
-    os.makedir(dd_false)
+    os.makedirs(dd_missed)
+    os.makedirs(dd_false)
     
     
     for i in range(len(missed)):
