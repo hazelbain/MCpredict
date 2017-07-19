@@ -253,7 +253,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
         predict_duration(data, istart, iend)
 
         #find the corresponding By event start and end
-        istart_y = By_start(data, istart, iend)
+        #istart_y = By_start(data, istart, iend)
         
         #predict the by event duration
         #predict_duration(data, istart_y, iend_y, component = 'y')
@@ -261,7 +261,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
 
         if icme_event(istart, iend, len(data['date'])):
             validation_stats, data, resultsdir, istart, iend
-
+       
     
     #create new dataframe to record event characteristics
     events, events_frac = create_event_dataframe(data, dst_data, pdf, predict = predict)
