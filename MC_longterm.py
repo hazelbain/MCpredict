@@ -25,7 +25,7 @@ import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff 
 
 
-def train_and_validate(fname='', validate=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
+def train_and_validate(fname='', validate=0, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
     
     #fname = 'th3'
     
@@ -36,7 +36,7 @@ def train_and_validate(fname='', validate=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9
 
     if validate == 0:
         
-        #fit the training events
+        #step 1: fit the training events
         events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0])
         
         #### step 2: use the events_frac from above to generate the bayesian PDF
@@ -44,7 +44,7 @@ def train_and_validate(fname='', validate=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9
             for n in nw:
                 pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, fname=fname+"_1998_2004_ew"+str(e)+"_nw"+str(n))
                         
-        #fit the validation events 
+        #step 3: fit the validation events 
         events_predict, events_frac_predict = fit_validation_events(fname=fname,\
                 ew=ew[0], nw=nw[0])
 
@@ -54,7 +54,7 @@ def train_and_validate(fname='', validate=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9
 
     else:
 
-        #validate
+        #step 4: validate (once events are fittng we can skip the first step)
         events_frac_predict = pickle.load(open("events_frac_predict_"+fname+"_2004_2017_ew"+str(ew[0])+"_nw"+str(nw[0])+".p","rb"))
                 
         events_frac_predict2 = validate_events(events_frac_predict, fname=fname, \
