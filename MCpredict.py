@@ -252,17 +252,19 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
         #now try and predict the duration of the bz component
         predict_duration(data, istart, iend)
 
-        #find the corresponding By event start and end
-        print("istart %i iend %i" % (istart, iend))
-        
-        istart_y = By_start(data, istart, iend)
-        
-        if istart_y != None:
-            
-            print("istart %i, iend %i, istart_y %i" % (istart, iend, istart_y))
-            
-            #predict the by event duration
-            predict_duration(data, istart_y, iend, component = 'y')
+#==============================================================================
+#         #find the corresponding By event start and end
+#         print("istart %i iend %i" % (istart, iend))
+#         
+#         istart_y = By_start(data, istart, iend)
+#         
+#         if istart_y != None:
+#             
+#             print("istart %i, iend %i, istart_y %i" % (istart, iend, istart_y))
+#             
+#             #predict the by event duration
+#             predict_duration(data, istart_y, iend, component = 'y')
+#==============================================================================
         
 
         if icme_event(istart, iend, len(data['date'])):

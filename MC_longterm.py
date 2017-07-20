@@ -25,16 +25,14 @@ import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff 
 
 
-def train_and_validate(fname='', validate=0, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80):
-    
-    #fname = 'th3'
-    
+def train_and_validate(fname='', train=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80):
+        
     #ew=[2]
     #nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     
     ## TODO: add in fname for plot directories, missed and false
 
-    if validate == 0:
+    if train == 1:
         
         #step 1: fit the training events
         events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0])
@@ -50,26 +48,28 @@ def train_and_validate(fname='', validate=0, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9
                 ew=ew[0], nw=nw[0], dst_thresh = dst_thresh)
 
 
-        return events, events_frac, events_predict, events_frac_predict
+        #return events, events_frac, events_predict, events_frac_predict
         #return events_predict, events_frac_predict
 
     else:
 
-        #step 4: validate (once events are fittng we can skip the first step)
+        #read in events
         events_frac_predict = pickle.load(open("events_frac_predict_"+fname+"_2004_2017_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
+
+
+    #step 4: validate (once events are fittng we can skip the first step)
+    events_frac_predict2 = validate_events(events_frac_predict, fname=fname, \
+            ew=ew, nw=nw,)
                 
-        events_frac_predict2 = validate_events(events_frac_predict, fname=fname, \
-                        ew=ew, nw=nw,)
-                
-        ##!!!!!!!!! check the boxplot to get the threshold P1 !!!!!!!!###
+    ##!!!!!!!!! check the boxplot to get the threshold P1 !!!!!!!!###
         
-        ##write report
-        for e in ew:
-            for n in nw:
-                events_frac_predict = pickle.load(open("events_frac_predict_"+fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
-                mcplt.write_report(events_frac_predict, fname=fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
-            
-        return events_frac_predict, events_frac_predict2
+    ##write report
+    for e in ew:
+        for n in nw:
+            events_frac_predict = pickle.load(open("events_frac_predict_"+fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
+            mcplt.write_report(events_frac_predict, fname=fname+"_2004_2017_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
+        
+    return events_frac_predict2
     
 
 
@@ -162,7 +162,7 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     return events_predict, events_frac_predict
 
 
-def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]):
+def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80):
 
     #### step 3a rerun predict witout reading in the data again
     
