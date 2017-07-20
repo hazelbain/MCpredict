@@ -253,10 +253,16 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
         predict_duration(data, istart, iend)
 
         #find the corresponding By event start and end
-        #istart_y = By_start(data, istart, iend)
+        print("istart %i iend %i" % (istart, iend))
         
-        #predict the by event duration
-        #predict_duration(data, istart_y, iend_y, component = 'y')
+        istart_y = By_start(data, istart, iend)
+        
+        if istart_y != None:
+            
+            print("istart %i, iend %i, istart_y %i" % (istart, iend, istart_y))
+            
+            #predict the by event duration
+            predict_duration(data, istart_y, iend, component = 'y')
         
 
         if icme_event(istart, iend, len(data['date'])):
@@ -765,18 +771,24 @@ def By_start(data, istart, iend):
     
     """     
     
-    tmp = [x*y for x,y in zip(data.by,data.by[1:])]
+    tmp = np.asarray([x*y for x,y in zip(data.by,data.by[1:])])
+    tmpneg = np.where(tmp < 0.0)[0]
     
-    prior_by0 = np.max(np.where(np.where(tmp < 0.0)[0] < istart))
-    after_by0 = np.max(np.where(np.where(tmp < 0.0)[0] > istart))
+    if len(np.where((tmpneg >= istart) & (tmpneg <= iend))[0]) > 0:
+        after_by0 = tmpneg[np.min(np.where((tmpneg >= istart) & (tmpneg <= iend))[0])]
+        istart_y = after_by0
+    else:
+        istart_y = None
 
     #TODO:
-        
+    
+#==============================================================================
+#     if (istart - prior_by0) <= (after_by0 - istart):
+#         istart_y = prior_by0
+#     else:
+#         istart_y = after_by0
+#==============================================================================
 
-    if (istart - prior_by0) <= (after_by0 - istart):
-        istart_y = prior_by0
-    else:
-        istart_y = after_by0
 
     return istart_y
 
@@ -857,7 +869,7 @@ def predict_duration(data, istart, iend, component = 'z'):
         index_theta_max = np.where(abs(theta[istart:i]) == theta_max)[0][0]   
         theta_max = theta[istart + index_b_max]
         
-        #indices of the max bz and theta
+        #indices of the max b component and theta
         i_bmax = istart + index_b_max
         i_thetamax = istart + index_theta_max
 
