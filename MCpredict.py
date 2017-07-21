@@ -272,7 +272,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
        
     
     #create new dataframe to record event characteristics
-    events, events_frac = create_event_dataframe(data, dst_data, pdf, predict = predict)
+    events, events_frac = create_event_dataframe(data, dst_data, pdf, dst_thresh=dst_thresh, predict = predict)
     
     #plot some stuff   
     if plotting == 1:
@@ -284,7 +284,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
 
 
 
-def create_event_dataframe(data, dst_data, pdf, t_frac = 5, predict = 0):
+def create_event_dataframe(data, dst_data, pdf, dst_thresh = -80, t_frac = 5, predict = 0):
 
     """
     Create two dataframes containing the characteristics for 
@@ -333,8 +333,21 @@ def create_event_dataframe(data, dst_data, pdf, t_frac = 5, predict = 0):
     events['end'] =  data['date'][evt_indices[:,1]].values  #needs to be added separately due to different index
 
     #get min dst and geoeffective flags
-    events = dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0)
+    events = dst_geo_tag(events, dst_data, dst_thresh = dst_thresh, dst_dur_thresh = 2.0)
 
+    #split the event into fractions for bayesian stats
+    events_frac = create_event_frac_dataframe(data, events, evt_indices, t_frac = t_frac)
+           
+    if predict == 1:
+        
+        #predict geoeffectivenes
+        events_frac = predict_geoeff(events_frac, pdf)
+
+    return events, events_frac
+    
+
+def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
+    
     #split the event into fractions for bayesian stats
     events_frac = events.loc[np.repeat(events.index.values, t_frac+1)]
     events_frac.reset_index(inplace=True)
@@ -359,15 +372,8 @@ def create_event_dataframe(data, dst_data, pdf, t_frac = 5, predict = 0):
         events_frac['bzm_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bzm_predicted'].iloc[frac_ind].values
         events_frac['tau_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted'].iloc[frac_ind].values
         events_frac['i_bzmax'].iloc[np.where(events_frac['evt_index'] == i)] = data['i_bzmax'].iloc[frac_ind].values
-           
-    if predict == 1:
-        
-        #predict geoeffectivenes
-        events_frac = predict_geoeff(events_frac, pdf)
-
-    return events, events_frac
     
-    
+    return events_frac
     
 def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 1, dst_thresh = -80, \
             plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots_2/',\
@@ -593,93 +599,7 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     plt.close()          
           
     return None
-
-def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0):
-    
-    """"
-    Add tag/column to events dataframes to indicate the geoeffectiveness of the
-    events
-    
-    inputs
-    ------
-    
-    events - pandas data frame
-        each row contains the characteristics for a single event
-    dst_data - dataframe
-        contains hourly dst data to use as a classifier to determine whether the
-        event is geoeffective or non geoeffective and recored the max/min value
-    dst_thresh - int 
-         threshold of dst to define geoeffective event        
-    dst_dur_thresh - float 
-         event is considered geoeffictive if dst < dst_thresh for more than 
-         dst_dur_thresh hours 
-         
-    outputs
-    -------
-    events - pandas data frame
-        each row contains the characteristics for a single event
-    
-    """
-    
-    
-    #add min Dst value and geoeffective tag for each event
-    dstmin = pd.DataFrame({'dst':[]})
-    dstdur = pd.DataFrame({'dstdur':[]})
-    geoeff = pd.DataFrame({'geoeff':[]})
-    for j in range(len(events)):
-                
-        #dst values for event time period
-        dst_evt = dst_data[events['start'].iloc[j] : events['end'].iloc[j]]
-
-        #if there are no dst data values then quit and move onto the next event interval
-        if len(dst_evt) == len(dst_evt.iloc[np.where(dst_evt['dst'] == False)]):
-            geoeff.loc[j] = 2           #unknown geoeff tag  
-            dstdur.loc[j] = 0.0
-            continue
-
-        # the min dst value regardless of duration
-        dstmin.loc[j] = dst_evt['dst'].min()
-               
-        #determine periods where dst is continuously below threshold dst < -80
-        dst_evt['tag'] = dst_evt['dst'] < dst_thresh
-
-        fst = dst_evt.index[dst_evt['tag'] & ~ dst_evt['tag'].shift(1).fillna(False)]
-        lst = dst_evt.index[dst_evt['tag'] & ~ dst_evt['tag'].shift(-1).fillna(False)]
-        pr = np.asarray([[i, j] for i, j in zip(fst, lst) if j > i])
-        
-        #if the event never reaches dst < -80 then it's not geoeffective
-        if len(pr) == 0:
-            geoeff.loc[j] = 0  
-            dstdur.loc[j] = 0.0
-        else:                               #at some point during event, dst < -80
-            for t in pr:
-                time_below_thresh = (t[1] - t[0] + timedelta(seconds = 3600)).seconds/60./60.
-                        
-                #event is considered geoeffictive if dst < -80 for more than 2 hours 
-                if time_below_thresh >= dst_dur_thresh:
-                    
-                    #now question if the dst is just recovering from previous event being geoeffective
-                    if (dst_evt['dst'].iloc[-1] > dst_evt['dst'].iloc[0] + 2):
-
-                        # if there the previous event interval also decreases then it could be recovering from that
-                        #if j > 0 & geoeff.loc[j-1] == 1:
-                        geoeff.loc[j] = 3                       #dst still rising from previous event -> ambiguous
-                    else:
-                        geoeff.loc[j] = 1
-
-                    dstdur.loc[j] = time_below_thresh
-
-                else: 
-                    geoeff.loc[j] = 0       # not below dst threshhold for long enough -> it's not geoeffective
-                    dstdur.loc[j] = time_below_thresh
-
-    events = events.reset_index()
-    events = pd.concat([events, dstmin, dstdur, geoeff], axis = 1)  
-    
-    return events
-        
-    
-    
+ 
     
 #==============================================================================
 # def find_event_times(data):
@@ -993,6 +913,90 @@ def predict_duration(data, istart, iend, component = 'z'):
                 data.loc[i:iend, 'bym_actual'] = b[istart + index_b_max_val]  
 
 
+def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0):
+    
+    """"
+    Add tag/column to events dataframes to indicate the geoeffectiveness of the
+    events
+    
+    inputs
+    ------
+    
+    events - pandas data frame
+        each row contains the characteristics for a single event
+    dst_data - dataframe
+        contains hourly dst data to use as a classifier to determine whether the
+        event is geoeffective or non geoeffective and recored the max/min value
+    dst_thresh - int 
+         threshold of dst to define geoeffective event        
+    dst_dur_thresh - float 
+         event is considered geoeffictive if dst < dst_thresh for more than 
+         dst_dur_thresh hours 
+         
+    outputs
+    -------
+    events - pandas data frame
+        each row contains the characteristics for a single event
+    
+    """
+    
+    
+    #add min Dst value and geoeffective tag for each event
+    dstmin = pd.DataFrame({'dst':[]})
+    dstdur = pd.DataFrame({'dstdur':[]})
+    geoeff = pd.DataFrame({'geoeff':[]})
+    for j in range(len(events)):
+                
+        #dst values for event time period
+        dst_evt = dst_data[events['start'].iloc[j] : events['end'].iloc[j]]
+
+        #if there are no dst data values then quit and move onto the next event interval
+        if len(dst_evt) == len(dst_evt.iloc[np.where(dst_evt['dst'] == False)]):
+            geoeff.loc[j] = 2           #unknown geoeff tag  
+            dstdur.loc[j] = 0.0
+            continue
+
+        # the min dst value regardless of duration
+        dstmin.loc[j] = dst_evt['dst'].min()
+        
+        #determine periods where dst is continuously below threshold dst < -80
+        dst_evt['tag'] = dst_evt['dst'] < dst_thresh
+
+        fst = dst_evt.index[dst_evt['tag'] & ~ dst_evt['tag'].shift(1).fillna(False)]
+        lst = dst_evt.index[dst_evt['tag'] & ~ dst_evt['tag'].shift(-1).fillna(False)]
+        pr = np.asarray([[i, j] for i, j in zip(fst, lst) if j > i])
+        
+        #if the event never reaches dst < -80 then it's not geoeffective
+        if len(pr) == 0:
+            geoeff.loc[j] = 0  
+            dstdur.loc[j] = 0.0
+        else:                               #at some point during event, dst < -80
+            for t in pr:
+                time_below_thresh = (t[1] - t[0] + timedelta(seconds = 3600)).seconds/60./60.
+                        
+                #event is considered geoeffictive if dst < -80 for more than 2 hours 
+                if time_below_thresh >= dst_dur_thresh:
+                    
+                    #now question if the dst is just recovering from previous event being geoeffective
+                    if (dst_evt['dst'].iloc[-1] > dst_evt['dst'].iloc[0] + 2):
+
+                        # if there the previous event interval also decreases then it could be recovering from that
+                        #if j > 0 & geoeff.loc[j-1] == 1:
+                        geoeff.loc[j] = 3                       #dst still rising from previous event -> ambiguous
+                    else:
+                        geoeff.loc[j] = 1
+
+                    dstdur.loc[j] = time_below_thresh
+
+                else: 
+                    geoeff.loc[j] = 0       # not below dst threshhold for long enough -> it's not geoeffective
+                    dstdur.loc[j] = time_below_thresh
+
+    events = events.reset_index()
+    events = pd.concat([events, dstmin, dstdur, geoeff], axis = 1)  
+    
+    return events
+          
 
 def predict_geoeff(events_frac, pdf):
         
