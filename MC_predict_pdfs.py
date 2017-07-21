@@ -235,7 +235,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     leg6.get_frame().set_alpha(0.5)
 
 
-    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/allpdfs_ew'+str(ew)+'_nw'+str(nw)+"_"+fname+'.pdf')
+    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/allpdfs_'+fname+'.pdf')
     plt.close()
 
     #create a dictionary to return PDFs etc
@@ -266,7 +266,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     P_dict["kernel_alg"] = kernel_alg
        
     #save a pickle file with P_dict
-    pickle.dump(P_dict, open("C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/Pdict_ew"+str(ew)+"_nw"+str(nw)+"_"+fname+".p", "wb"))
+    pickle.dump(P_dict, open("C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/Pdict_"+fname+".p", "wb"))
     
     return P_dict    
 
