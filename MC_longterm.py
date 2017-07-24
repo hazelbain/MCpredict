@@ -42,7 +42,9 @@ def train_and_validate(fname='', train=1, nofit=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)
         else:
             events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0])
-    
+        
+        return events, events_frac
+        
         sys.exit()
         
         #### step 2: use the events_frac from above to generate the bayesian PDF
@@ -125,6 +127,12 @@ def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
     events = pickle.load(open("events_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh_old))+".p","rb"))
     events_frac = pickle.load(open("events_frac_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh_old))+".p","rb")) 
 
+    #events = events.iloc[5340:5399]
+    #events_frac = events_frac[5340:5399]
+    
+    #events = events.iloc[9000:9023]
+    #events_frac = events_frac[9000:9023]
+
     print(len(events_frac.geoeff.iloc[np.where(events_frac.geoeff == 1.0)[0]]))
 
     if dst_thresh != dst_thresh_old:
@@ -136,17 +144,21 @@ def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
         geoeff = dst_geo_tag(events_frac, dst_data, dst_thresh = dst_thresh, \
                               dst_dur_thresh = dst_thresh, geoeff_only = 1)
     
+        print(geoeff.iloc[0:10])
+    
         #replace geoeff column
-        events_frac.geoeff = geoeff
+        events_frac.geoeff = geoeff.geoeff
+        
+        print(events_frac.geoeff.iloc[0:10])
         
         print(len(events_frac.geoeff.iloc[np.where(events_frac.geoeff == 1.0)[0]]))
         
         #save the new dataframes
-        events.to_csv("events_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8') 
-        events_frac.to_csv("events_frac_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
+        #events.to_csv("events_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8') 
+        #events_frac.to_csv("events_frac_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
         
-        pickle.dump(events_frac,open("events_frac_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
-        pickle.dump(events,open("events_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+        #pickle.dump(events_frac,open("events_frac_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+        #pickle.dump(events,open("events_"+fname+"1998_2004_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
             
     
     return events, events_frac
