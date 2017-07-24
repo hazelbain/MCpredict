@@ -948,19 +948,13 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
     geoeff = pd.DataFrame({'geoeff':[]})
 
     prev_time = events.start.iloc[-2]
-    
-    print(events[['','']].iloc[0:10])
 
     for j in range(len(events)):
         
         #if events is dataframe with events by frac then don't need to calc
         #dst for each fraction
-        print(j)
-        print(events[['dst','geoeff']].iloc[j])
-        
+       
         if events.start.iloc[j] != prev_time:
-            
-            print("here")
             
             #dst values for event time period
             dst_evt = dst_data[events['start'].iloc[j] : events['end'].iloc[j]]
@@ -974,7 +968,7 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
             # the min dst value regardless of duration
             dstmin.loc[j] = dst_evt['dst'].min()
             
-            #determine periods where dst is continuously below threshold dst < -80
+            #determine periods where dst is continuously below threshold dst < -80            
             dst_evt['tag'] = dst_evt['dst'] <= dst_thresh
     
             fst = dst_evt.index[dst_evt['tag'] & ~ dst_evt['tag'].shift(1).fillna(False)]
@@ -982,41 +976,40 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
             pr = np.asarray([[i, j] for i, j in zip(fst, lst) if j > i])
             
             #if the event never reaches dst < -80 then it's not geoeffective
+            time_below_thresh = []
             if len(pr) == 0:
                 geoeff.loc[j] = 0  
                 dstdur.loc[j] = 0.0
             else:                               #at some point during event, dst < -80
+                #find the range of times that dst is below the thresh for the longest
                 for t in pr:
-                    time_below_thresh = (t[1] - t[0] + timedelta(seconds = 3600)).seconds/60./60.
-                            
-                    #event is considered geoeffictive if dst < -80 for more than 2 hours 
-                    if time_below_thresh >= dst_dur_thresh:
+                    time_below_thresh.append((t[1] - t[0] + timedelta(seconds = 3600)).seconds/60./60.)
+                np.asarray(time_below_thresh)    
+
+                #event is considered geoeffictive if dst < -80 for more than 2 hours 
+                if np.max(time_below_thresh) >= dst_dur_thresh:
                         
-                        #now question if the dst is just recovering from previous event being geoeffective
-                        if (dst_evt['dst'].iloc[-1] > dst_evt['dst'].iloc[0] + 2):
+                    #now question if the dst is just recovering from previous event being geoeffective
+                    if (dst_evt['dst'].iloc[-1] > dst_evt['dst'].iloc[0] + 2):
     
-                            # if there the previous event interval also decreases then it could be recovering from that
-                            #if j > 0 & geoeff.loc[j-1] == 1:
-                            geoeff.loc[j] = 3                       #dst still rising from previous event -> ambiguous
-                        else:
-                            geoeff.loc[j] = 1
+                        # if there the previous event interval also decreases then it could be recovering from that
+                        #if j > 0 & geoeff.loc[j-1] == 1:
+                        geoeff.loc[j] = 3                       #dst still rising from previous event -> ambiguous
+                    else:
+                        geoeff.loc[j] = 1
     
-                        dstdur.loc[j] = time_below_thresh
-    
-                    else: 
-                        geoeff.loc[j] = 0       # not below dst threshhold for long enough -> it's not geoeffective
-                        dstdur.loc[j] = time_below_thresh
+                else: 
+                    geoeff.loc[j] = 0       # not below dst threshhold for long enough -> it's not geoeffective
+
+                dstdur.loc[j] = np.max(time_below_thresh)                    
 
         else:
             geoeff.loc[j] = geoeff.loc[j-1]
-            print(geoeff.iloc[j-1])
-            print(geoeff.iloc[j])
+            #print(geoeff.iloc[j-1])
+            #print(geoeff.iloc[j])
             
         #update prev_time
         prev_time = events.start.iloc[j]
-    
-        if j > 25:
-            sys.exit()
     
     #if events is events by frac of an event then only need geoeff
     if geoeff_only == 0:
