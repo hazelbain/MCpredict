@@ -26,12 +26,7 @@ from MCpredict import predict_geoeff, dst_geo_tag
 
 
 def train_and_validate(fname='', train=1, nofit_train=1, nofit_valid=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80, dst_thresh_old = -80):
-        
-    import sys
-    
-    #ew=[2]
-    #nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    
+            
     ## TODO: add in fname for plot directories, missed and false
 
     if train == 1:
