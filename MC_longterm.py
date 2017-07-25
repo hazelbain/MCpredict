@@ -47,7 +47,7 @@ def train_and_validate(fname='', train=1, nofit_train=1, nofit_valid=1, ew=[2], 
         for e in ew:
             for n in nw:
                 pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, \
-                        fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+"_train")
+                        fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)))
                         
         #step 3: fit the validation events 
         if nofit_valid == 1:
@@ -64,7 +64,7 @@ def train_and_validate(fname='', train=1, nofit_train=1, nofit_valid=1, ew=[2], 
     else:
 
         #read in events
-        events_frac_predict = pickle.load(open("events_frac_predict_"+fname+"_valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
+        events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"_valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
 
 
     #step 4: validate (once events are fittng we can skip the first step)
@@ -160,7 +160,7 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     #restore prediction matrix
 
     
-    pdf = pickle.load(open("PDFs/Pdict_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+"_"+fname+"train.p","rb"))
+    pdf = pickle.load(open("PDFs/Pdict"+fname+"_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p","rb"))
             
     t1 = ['1-jan-2004','1-jan-2005',\
           '1-jan-2006','1-jan-2007','1-jan-2008','1-jan-2009','1-jan-2010','1-jan-2011','1-jan-2012','1-jan-2013',\
@@ -239,7 +239,7 @@ def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.
         for n in nw:
             
             #restore prediction matrix
-            pdf = pickle.load(open("PDFs/Pdict_ew"+str(e)+"_nw"+str(n)+"_"+fname+"_train"+"_dst"+str(abs(dst_thresh))+".p","rb")) 
+            pdf = pickle.load(open("PDFs/Pdict_"+fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb")) 
             
             #first strip the predict from event_frac_predict
             cols_to_keep = ['evt_index', 'data_index','start', 'bzm', 'tau', 'istart', 'iend',\
