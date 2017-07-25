@@ -963,10 +963,13 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
             if len(dst_evt) == len(dst_evt.iloc[np.where(dst_evt['dst'] == False)]):
                 geoeff.loc[j] = 2           #unknown geoeff tag  
                 dstdur.loc[j] = 0.0
+                dstmin.loc[j] = 999
                 continue
     
             # the min dst value regardless of duration
             dstmin.loc[j] = dst_evt['dst'].min()
+            #print("indx %i, j: %i, dstmin %i, " % (events.index[j], j, dstmin.iloc[j]))
+            
             
             #determine periods where dst is continuously below threshold dst < -80            
             dst_evt['tag'] = dst_evt['dst'] <= dst_thresh
@@ -1002,12 +1005,18 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
                     geoeff.loc[j] = 0       # not below dst threshhold for long enough -> it's not geoeffective
 
                 dstdur.loc[j] = np.max(time_below_thresh)                    
-
+                #print("geoeff: %i, dstdur %i, " % (geoeff.iloc[j], dstdur.iloc[j]))
         else:
             geoeff.loc[j] = geoeff.loc[j-1]
+            dstmin.loc[j] = dstmin.loc[j-1]
+            dstdur.loc[j] = dstdur.loc[j-1]
+            
             #print(geoeff.iloc[j-1])
             #print(geoeff.iloc[j])
-            
+        #if geoeff.iloc[j].values == 1:
+        #    print("geoeff %i, dstmin %i, dstdur %i" % (geoeff.iloc[j], dstmin.iloc[j], dstdur.iloc[j]) )
+        
+        
         #update prev_time
         prev_time = events.start.iloc[j]
     
@@ -1018,7 +1027,7 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
 
         return events
     else:
-        return geoeff
+        return geoeff, dstmin, dstdur
     
           
 
