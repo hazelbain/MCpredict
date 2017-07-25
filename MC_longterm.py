@@ -25,14 +25,14 @@ import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff, dst_geo_tag
 
 
-def train_and_validate(fname='', train=1, nofit_train=1, nofit_valid=1, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80, dst_thresh_old = -80):
+def train_and_validate(fname='', train=1, trainfit=0, validfit=0, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80, dst_thresh_old = -80):
             
     ## TODO: add in fname for plot directories, missed and false
 
     if train == 1:
         
         #step 1: fit the training events
-        if nofit_train == 1:
+        if trainfit == 0:
             events_frac = load_training_events(fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)
         else:
@@ -45,7 +45,7 @@ def train_and_validate(fname='', train=1, nofit_train=1, nofit_valid=1, ew=[2], 
                         fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)))
                         
         #step 3: fit the validation events 
-        if nofit_valid == 1:
+        if validfit == 0:
             events_frac_predict = load_validation_events(fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)   
         else:
@@ -71,7 +71,7 @@ def train_and_validate(fname='', train=1, nofit_train=1, nofit_valid=1, ew=[2], 
     ##write report
     for e in ew:
         for n in nw:
-            events_frac_predict = pickle.load(open("events_frac_predict_"+fname+"valid_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
+            events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"valid_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
             mcplt.write_report(events_frac_predict, fname=fname+"valid_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
         
     return events_frac_predict2
