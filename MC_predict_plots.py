@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 
-def plot_predict_bz_tau_frac(events_frac, outname = 'bztau_predict', fname = ''):
+def plot_predict_bz_tau_frac(events_frac, outname = 'valid/plots/bztau_predict', fname = ''):
     
     """
     
@@ -122,7 +122,7 @@ def plot_predict_bz_tau_frac(events_frac, outname = 'bztau_predict', fname = '')
     
     return None
     
-def plot_obs_bz_tau(events, outname = 'bzm_vs_tau', fname=''):
+def plot_obs_bz_tau(events, outname = 'valid/plots/bzm_vs_tau', fname=''):
     
     """
     Plots the magnetic cloud actual bzm vs tau
@@ -202,7 +202,7 @@ def plot_obs_bz_tau_dst(events, outname = 'bzm_vs_tau_vs_dst', fname = ''):
     plt.close()    
    
     
-def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'bzm_vs_tau_skill', fname = ''):
+def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'valid/plots/bzm_vs_tau_skill', fname = ''):
     
     """
     Plots the magnetic cloud actual bzm vs tau for each fraction of an 
@@ -283,7 +283,7 @@ def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'bzm_vs_tau_skill', f
     plt.close()
     
     
-def plot_obs_vs_predict(events_frac, outname = 'bzm_obs_vs_predicted', fname = ''):
+def plot_obs_vs_predict(events_frac, outname = 'valid/plots/bzm_obs_vs_predicted', fname = ''):
      
     from matplotlib.font_manager import FontProperties
         
@@ -323,13 +323,13 @@ def plot_theta(events_frac, fname = ''):
     
     ax = evts.iloc[np.where(evts.theta_z_max < 0.0)[0]].boxplot(column = 'dtheta_z', by='frac')
     fig = ax.get_figure()
-    fig.savefig('dtheta_'+fname+'.jpeg', format = 'jpeg')
+    fig.savefig('valid/plots/dtheta_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
     
     #plot max theta
     ax = evts.iloc[np.where(evts.theta_z_max < 0.0)[0]].boxplot(column = 'theta_z_max', return_type='axes')
     fig = ax.get_figure()
-    fig.savefig('theta_max_'+fname+'.jpeg', format = 'jpeg')
+    fig.savefig('valid/plots/theta_max_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
 
 def plot_boxplot(events_frac,fname=''):
@@ -338,11 +338,11 @@ def plot_boxplot(events_frac,fname=''):
     #w = np.where(events_frac.frac == 1.0)[0]
     ax = events_frac.boxplot(column = 'P1_scaled', by = 'geoeff')
     fig = ax.get_figure()
-    fig.savefig('P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
+    fig.savefig('valid/plots/P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
     
 
-def write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P1 = 0.2):
+def write_report(events_frac, outname = 'html/mc_predict_test_results', fname = '', P1 = 0.2):
     
     
     ##make the plots   
@@ -407,11 +407,11 @@ def write_report(events_frac, outname = 'mc_predict_test_results', fname = '', P
 #==============================================================================
     
     #images 
-    f.write('  <img src="bzm_vs_tau_skill' + '_' + fname + '.jpeg" alt="bzm_vs_tau_skill">\n\n\n')
-    f.write('  <img src="bzm_obs_vs_predicted' + '_' + fname + '.jpeg" alt="bzm_obs_vs_predicted" ">\n\n\n')
-    f.write('  <img src="bztau_predict' + '_' + fname + '.jpeg" alt="bztau_predict">\n\n\n')
-    f.write('  <img src="dtheta_' + fname + '.jpeg" alt="dtheta">\n\n\n')
-    f.write('  <img src="theta_max_' + fname + '.jpeg" alt="theta_max">\n\n\n')
+    f.write('  <img src="valid/plots/bzm_vs_tau_skill' + '_' + fname + '.jpeg" alt="bzm_vs_tau_skill">\n\n\n')
+    f.write('  <img src="valid/plots/bzm_obs_vs_predicted' + '_' + fname + '.jpeg" alt="bzm_obs_vs_predicted" ">\n\n\n')
+    f.write('  <img src="valid/plots/bztau_predict' + '_' + fname + '.jpeg" alt="bztau_predict">\n\n\n')
+    f.write('  <img src="valid/plots/dtheta_' + fname + '.jpeg" alt="dtheta">\n\n\n')
+    f.write('  <img src="valid/plots/theta_max_' + fname + '.jpeg" alt="theta_max">\n\n\n')
 
     f.write('</body>')
     f.write('</html>')
