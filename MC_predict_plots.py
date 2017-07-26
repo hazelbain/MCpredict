@@ -277,7 +277,7 @@ def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'valid/plots/bzm_vs_t
     leg1 = ax1.legend(loc='upper right', prop = fontP, fancybox=True, \
                      frameon=True, scatterpoints = 1 )
     leg1.get_frame().set_alpha(0.5)
-        
+   
     plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()
