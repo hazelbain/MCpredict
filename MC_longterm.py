@@ -25,7 +25,7 @@ import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff, dst_geo_tag
 
 
-def train_and_validate(fname='', train=1, trainfit=0, validfit=0, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80, dst_thresh_old = -80):
+def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80, dst_thresh_old = -80):
             
     ## TODO: add in fname for plot directories, missed and false
 
@@ -38,12 +38,14 @@ def train_and_validate(fname='', train=1, trainfit=0, validfit=0, ew=[2], nw=[0.
         else:
             events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0])
         
-        #### step 2: use the events_frac from above to generate the bayesian PDF
-        for e in ew:
-            for n in nw:
-                pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, \
-                        fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)))
-                        
+        if trainpdf == 1:
+            #### step 2: use the events_frac from above to generate the bayesian PDF
+            for e in ew:
+                for n in nw:
+                    pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, \
+                            fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)))
+          
+                
         #step 3: fit the validation events 
         if validfit == 0:
             events_frac_predict = load_validation_events(fname, ew[0], nw[0], \
@@ -71,8 +73,8 @@ def train_and_validate(fname='', train=1, trainfit=0, validfit=0, ew=[2], nw=[0.
     ##write report
     for e in ew:
         for n in nw:
-            events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"valid_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
-            mcplt.write_report(events_frac_predict, fname=fname+"valid_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
+            events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
+            mcplt.write_report(events_frac_predict, fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
         
     return events_frac_predict2
     
@@ -163,6 +165,9 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     t2 = ['31-dec-2004','31-dec-2005',\
           '31-dec-2006','31-dec-2007','31-dec-2008','31-dec-2009','31-dec-2010','31-dec-2011','31-dec-2012','31-dec-2013',
           '31-dec-2014','31-dec-2015','31-dec-2016','31-may-2017']
+    
+    #t1 = ['1-jan-2004']
+    #t2 = ['31-jan-2004']
 
             
     events_predict = pd.DataFrame()             #observational event characteristics for all MCs
@@ -247,7 +252,7 @@ def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.
 
             #save
             #events_frac_predict2.to_csv("valid/events_frac_predict_"+fname+"valid_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
-            pickle.dump(events_frac_predict2,open("valid/events_frac_"+fname+"valid_ew"+str(e)+"_dst"+str(abs(dst_thresh))+"_nw"+str(n)+".p", "wb"))
+            pickle.dump(events_frac_predict2,open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
             
             #plots
             #mcplt.plot_obs_bz_tau(events_predict, fname = "valid/plots/"+fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
@@ -257,7 +262,7 @@ def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.
             #mcplt.plot_bzmp_vs_taup_skill(events_frac_predict, P1 = 0.1, fname="valid/plots/"+fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
             
             #boxplot
-            mcplt.plot_boxplot(events_frac_predict2, fname = "valid/plots/"+fname+'valid_ew'+str(e)+'_nw'+str(n)+"_dst"+str(abs(dst_thresh)))
+            mcplt.plot_boxplot(events_frac_predict2, fname = fname+'predict_ew'+str(e)+'_nw'+str(n)+"_dst"+str(abs(dst_thresh)))
 
     
     return events_frac_predict2
