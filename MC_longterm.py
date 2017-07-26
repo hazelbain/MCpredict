@@ -59,22 +59,22 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, ew
         #return events_predict, events_frac_predict
 
     else:
-
+        print("here")
         #read in events
-        events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"_valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
+        events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
 
 
     #step 4: validate (once events are fittng we can skip the first step)
     events_frac_predict2 = validate_events(events_frac_predict, fname=fname, \
-            ew=ew, nw=nw,)
+            ew=ew, nw=nw, dst_thresh=dst_thresh)
                 
     ##!!!!!!!!! check the boxplot to get the threshold P1 !!!!!!!!###
         
     ##write report
     for e in ew:
         for n in nw:
-            events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
-            mcplt.write_report(events_frac_predict, fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
+            events_frac_predict2 = pickle.load(open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
+            mcplt.write_report(events_frac_predict2, fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
         
     return events_frac_predict2
     
@@ -202,7 +202,7 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
 def load_validation_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
 
     #load the fitted events    
-    events_frac_predict = pickle.load(open("valide/events_frac_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh_old))+".p","rb")) 
+    events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh_old))+".p","rb")) 
 
 
     if dst_thresh != dst_thresh_old:
