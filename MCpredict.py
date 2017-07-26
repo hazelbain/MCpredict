@@ -514,11 +514,11 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
             
             ax1b.axvline(x=data['date'].iloc[events_frac['istart_bz'].iloc[i] + wmax_th].values[0], \
                      linewidth=1, linestyle='--', color='grey')
-            
+    
 
-                  
-    #----density
-    ax2.plot(data['date'], data['sw_n'], label='n ($\mathrm{cm^-3}$)')
+
+    #dtheta_z        
+    ax2.plot(data['date'], data['dtheta_z'], label='dtheta_z deg/min')
     ax2.set_xticklabels(' ')
     ax2.xaxis.set_major_locator(daysLoc)
     ax2.xaxis.set_minor_locator(hoursLoc)
@@ -529,6 +529,21 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
         ax2.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
     leg = ax2.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
+                  
+    #----density
+#==============================================================================
+#     ax2.plot(data['date'], data['sw_n'], label='n ($\mathrm{cm^-3}$)')
+#     ax2.set_xticklabels(' ')
+#     ax2.xaxis.set_major_locator(daysLoc)
+#     ax2.xaxis.set_minor_locator(hoursLoc)
+#     ax2.set_xlim([st, et])
+#     for l in line:
+#         ax2.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax2.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax2.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#==============================================================================
     
     #----velocity
     maxv = max(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) + 50
