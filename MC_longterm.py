@@ -33,24 +33,29 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, ew
         
         #step 1: fit the training events
         if trainfit == 0:
+            print("Loading the training data")
             events_frac = load_training_events(fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)
+            events_frac = events_frac.replace([np.inf], np.nan).dropna()
         else:
-            events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0])
+            print("Fitting the training data")
+            events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0], dst_thresh=dst_thresh)
         
         if trainpdf == 1:
             #### step 2: use the events_frac from above to generate the bayesian PDF
+            print("Creating the PDFs")
             for e in ew:
                 for n in nw:
                     pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, \
                             fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)))
-          
                 
         #step 3: fit the validation events 
         if validfit == 0:
+            print("Loading the validation data")
             events_frac_predict = load_validation_events(fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)   
         else:
+            print("Fitting the validation data")
             events_predict, events_frac_predict = fit_validation_events(fname=fname,\
                     ew=ew[0], nw=nw[0], dst_thresh = dst_thresh)
 
@@ -59,22 +64,24 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, ew
         #return events_predict, events_frac_predict
 
     else:
-        print("here")
         #read in events
+        print("Loading the validation data")
         events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
 
 
-    #step 4: validate (once events are fittng we can skip the first step)
+    #step 4: prediction (once events are fittng we can skip the first step)
+    print("Predicting the geoeffectiveness")
     events_frac_predict2 = validate_events(events_frac_predict, fname=fname, \
             ew=ew, nw=nw, dst_thresh=dst_thresh)
                 
     ##!!!!!!!!! check the boxplot to get the threshold P1 !!!!!!!!###
         
     ##write report
+    print("Writing Report")
     for e in ew:
         for n in nw:
             events_frac_predict2 = pickle.load(open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
-            mcplt.write_report(events_frac_predict2, fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
+            mcplt.write_report(events_frac_predict2, dd = "valid/plots/", fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
         
     return events_frac_predict2
     
@@ -109,10 +116,10 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
     pickle.dump(events_frac,open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
     pickle.dump(events,open("train/events_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
         
-    mcplt.plot_obs_bz_tau(events, fname = "train/plots/"+fname+"train_dst"+str(abs(dst_thresh)))
-    mcplt.plot_predict_bz_tau_frac(events_frac, fname = "train/plots/"+fname+"train_dst"+str(abs(dst_thresh)))
-    mcplt.plot_obs_vs_predict(events_frac, fname = "train/plots/"+fname+"train_dst"+str(abs(dst_thresh)))
-    mcplt.plot_theta(events_frac, fname = "train/plots/"+fname+"train_dst"+str(abs(dst_thresh)))
+    mcplt.plot_obs_bz_tau(events, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
+    mcplt.plot_predict_bz_tau_frac(events_frac, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
+    mcplt.plot_obs_vs_predict(events_frac, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
+    mcplt.plot_theta(events_frac, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
     
 
     return events, events_frac
@@ -190,11 +197,11 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     pickle.dump(events_predict,open("valid/events_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
                 
     #plots
-    #mcplt.plot_obs_bz_tau(events_predict, fname = "valid/plots/"+fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
-    #mcplt.plot_predict_bz_tau_frac(events_frac_predict, fname = "valid/plots/"+fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
-    #mcplt.plot_obs_vs_predict(events_frac_predict, fname="valid/plots/"+fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
-    #mcplt.plot_bzm_vs_tau_skill(events_frac_predict, P1 = 0.1, fname="valid/plots/"+fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
-    #mcplt.plot_theta(events_frac_predict, fname = "valid/plots/"+fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
+    #mcplt.plot_obs_bz_tau(events_predict, dd = "valid/plots/", fname = fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
+    #mcplt.plot_predict_bz_tau_frac(events_frac_predict, dd = "valid/plots/", fname = fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
+    #mcplt.plot_obs_vs_predict(events_frac_predict, dd = "valid/plots/", fname= fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
+    #mcplt.plot_bzm_vs_tau_skill(events_frac_predict, dd = "valid/plots/", P1 = 0.1, fname=fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
+    #mcplt.plot_theta(events_frac_predict, dd = "valid/plots/", fname = fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
         
     return events_predict, events_frac_predict
 
@@ -255,11 +262,11 @@ def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.
             pickle.dump(events_frac_predict2,open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
             
             #plots
-            #mcplt.plot_obs_bz_tau(events_predict, fname = "valid/plots/"+fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
-            #mcplt.plot_predict_bz_tau_frac(events_frac_predict, fname = "valid/plots/"+fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
-            #mcplt.plot_obs_vs_predict(events_frac_predict, fname="valid/plots/"+fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
-            #mcplt.plot_bzm_vs_tau_skill(events_frac_predict, P1 = 0.1, fname="valid/plots/"+fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
-            #mcplt.plot_bzmp_vs_taup_skill(events_frac_predict, P1 = 0.1, fname="valid/plots/"+fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
+            #mcplt.plot_obs_bz_tau(events_predict, dd = "valid/plots/", fname = fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
+            #mcplt.plot_predict_bz_tau_frac(events_frac_predict, dd = "valid/plots/", fname = fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
+            #mcplt.plot_obs_vs_predict(events_frac_predict, dd = "valid/plots/", fname=fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
+            #mcplt.plot_bzm_vs_tau_skill(events_frac_predict, dd = "valid/plots/", P1 = 0.1, fname=fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
+            #mcplt.plot_bzmp_vs_taup_skill(events_frac_predict, dd = "valid/plots/", P1 = 0.1, fname=fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
             
             #boxplot
             mcplt.plot_boxplot(events_frac_predict2, fname = fname+'predict_ew'+str(e)+'_nw'+str(n)+"_dst"+str(abs(dst_thresh)))
@@ -323,7 +330,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                         csv = csv, livedb = livedb, predict = predict,\
                         smooth_num = 100, dst_thresh = dst_thresh, plotting = plotting,\
                         plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_dst100/')
+                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_th4/')
                     
                     events = events.append(events_tmp)
                     events_frac = events_frac.append(events_frac_tmp)
