@@ -787,6 +787,8 @@ def predict_duration(data, istart, iend, component = 'z'):
 
     theta_start = theta[istart]
 
+    increasing = 0
+
     step = 20
     for i in np.arange(istart+step, iend, step):
         
@@ -804,24 +806,32 @@ def predict_duration(data, istart, iend, component = 'z'):
         #max theta
         theta_max = np.max(abs(theta[istart:i]))
         index_theta_max = np.where(abs(theta[istart:i]) == theta_max)[0][0]   
-        theta_max = theta[istart + index_b_max]
+        theta_max = theta[istart + index_theta_max]
         
         #indices of the max b component and theta
         i_bmax = istart + index_b_max
         i_thetamax = istart + index_theta_max
 
+
 #==============================================================================
-#         if ((istart >= 4256) & (iend  <= 4748)):
-#             print("\n theta_max: " +str(theta_max))
+#         if ((istart >= 1484) & (iend  <= 2024)):
+#             print("\n time: "+ str(data.date.iloc[i]) +" theta_max: " +str(theta_max))
 #==============================================================================
 
         #determine the rotation of theta so far
         if value_increasing(theta_current, theta_b_max):
 
-            dtheta = (theta_b_max - theta_start)
-            dth = 180.0
+            ##first time that theta has been increasing 
+            if increasing == 0:
+                dtheta = (theta_max - theta_start)
+                dth = 180.0 
+                increasing = 1
+            else:
+                dtheta = (theta_max - theta_start) + (theta_max - theta_current)
+                dth = 2.0 * theta_max
+            
 #==============================================================================
-#             if ((istart >= 4256) & (iend  <= 4748)):
+#             if ((istart >= 1484) & (iend  <= 2024)):
 #                 print("increasing")
 #                 print("dtheta: " +str(dtheta))
 #==============================================================================
@@ -829,8 +839,9 @@ def predict_duration(data, istart, iend, component = 'z'):
 
             dtheta = (theta_max - theta_start) + (theta_max - theta_current)
             dth = 2.0 * theta_max
+            
 #==============================================================================
-#             if ((istart >= 4256) & (iend  <= 4748)):
+#             if ((istart >= 1484) & (iend  <= 2024)):
 #                 print("decreasing")
 #                 print("dtheta: " +str(dtheta))
 #==============================================================================
@@ -845,8 +856,8 @@ def predict_duration(data, istart, iend, component = 'z'):
 #         if ((istart >= 4256) & (iend  <= 4748)):
 #             print("dur: " + str(dduration) + ", rate_rot: " + str(rate_of_rotation) + ", pred_dur: " + str(predicted_duration),\
 #                   "actual dur: " + str((iend-istart)/60.)) 
+#   
 #==============================================================================
-  
 
 
         #now try and predict B component max
