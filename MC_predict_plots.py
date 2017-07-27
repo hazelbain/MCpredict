@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 
-def plot_predict_bz_tau_frac(events_frac, outname = 'valid/plots/bztau_predict', fname = ''):
+def plot_predict_bz_tau_frac(events_frac, dd = '', outname = 'bztau_predict', fname = ''):
     
     """
     
@@ -116,13 +116,13 @@ def plot_predict_bz_tau_frac(events_frac, outname = 'valid/plots/bztau_predict',
     leg5.get_frame().set_alpha(0.5)  
     
     #plt.show()
-    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
+    plt.savefig(dd + outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()
     
     return None
     
-def plot_obs_bz_tau(events, outname = 'valid/plots/bzm_vs_tau', fname=''):
+def plot_obs_bz_tau(events, dd = '', outname = 'bzm_vs_tau', fname=''):
     
     """
     Plots the magnetic cloud actual bzm vs tau
@@ -148,20 +148,20 @@ def plot_obs_bz_tau(events, outname = 'valid/plots/bzm_vs_tau', fname=''):
                            
     plt.scatter(events['bzm'].iloc[w_no_geoeff], events['tau'].iloc[w_no_geoeff], c = 'b', label = 'Not Geoeffecive' )                         
     plt.scatter(events['bzm'].iloc[w_geoeff], events['tau'].iloc[w_geoeff], c = 'r', label = 'Geoeffective')
-    plt.ylim(0,60)
-    plt.xlim(-60,60)
+    plt.ylim(0,250)
+    plt.xlim(-150,150)
     plt.xlabel("$\mathrm{B_{zm}}$ (nT)")
     plt.ylabel("Duration (hr)")
     leg = plt.legend(loc='upper right', prop = fontP, fancybox=True, \
                      frameon=True, scatterpoints = 1 )
     leg.get_frame().set_alpha(0.5)
     
-    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
+    plt.savefig(dd + outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()
 
 
-def plot_obs_bz_tau_dst(events, outname = 'bzm_vs_tau_vs_dst', fname = ''):
+def plot_obs_bz_tau_dst(events, dd = '', outname = 'bzm_vs_tau_vs_dst', fname = ''):
     
     """
     Plots the magnetic cloud actual bzm vs tau as a function of dst
@@ -197,12 +197,12 @@ def plot_obs_bz_tau_dst(events, outname = 'bzm_vs_tau_vs_dst', fname = ''):
     cbar = plt.colorbar(c, label = "Dst")
     #cbar.set_label("Dst")   
     
-    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
+    plt.savefig(dd + outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()    
    
     
-def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'valid/plots/bzm_vs_tau_skill', fname = ''):
+def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, dd = '', outname = 'bzm_vs_tau_skill', fname = ''):
     
     """
     Plots the magnetic cloud actual bzm vs tau for each fraction of an 
@@ -240,8 +240,8 @@ def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'valid/plots/bzm_vs_t
     ax0.scatter(missed['bzm'], missed['tau'], c = 'g', label = 'Missed' )                         
     ax0.scatter(false['bzm'], false['tau'], c = 'orange', label = 'False')
     ax0.set_title("Observed parameters")
-    ax0.set_ylim(0,100)
-    ax0.set_xlim(-60,60)
+    ax0.set_ylim(0,200)
+    ax0.set_xlim(-75,75)
     ax0.set_xlabel("$\mathrm{B_{zm}}$ (nT)")
     ax0.set_ylabel("Duration (hr)")
     leg0 = ax0.legend(loc='upper right', prop = fontP, fancybox=True, \
@@ -270,20 +270,20 @@ def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, outname = 'valid/plots/bzm_vs_t
     ax1.scatter(missed_p['bzm_predicted'], missed_p['tau_predicted'], c = 'g', label = 'Missed' )                         
     ax1.scatter(false_p['bzm_predicted'], false_p['tau_predicted'], c = 'orange', label = 'False')
     ax1.set_title("Predicted parameters")
-    ax1.set_ylim(0,100)
-    ax1.set_xlim(-60,60)
+    ax1.set_ylim(0,200)
+    ax1.set_xlim(-75,75)
     ax1.set_xlabel("$\mathrm{B_{zm}}$ predicted (nT)")
     ax1.set_ylabel("Duration predicted (hr)")
     leg1 = ax1.legend(loc='upper right', prop = fontP, fancybox=True, \
                      frameon=True, scatterpoints = 1 )
     leg1.get_frame().set_alpha(0.5)
    
-    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
+    plt.savefig(dd + outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()
     
     
-def plot_obs_vs_predict(events_frac, outname = 'valid/plots/bzm_obs_vs_predicted', fname = ''):
+def plot_obs_vs_predict(events_frac, dd = '', outname = 'bzm_obs_vs_predicted', fname = ''):
      
     from matplotlib.font_manager import FontProperties
         
@@ -310,46 +310,46 @@ def plot_obs_vs_predict(events_frac, outname = 'valid/plots/bzm_obs_vs_predicted
     ax2.set_ylabel("tau obs (nT)")
     ax2.set_title("Tau obs vs predicted")
 
-    plt.savefig(outname + '_' + fname + '.jpeg', format='jpeg')
+    plt.savefig(dd + outname + '_' + fname + '.jpeg', format='jpeg')
     
     plt.close()  
     
     return None
 
-def plot_theta(events_frac, fname = ''):
+def plot_theta(events_frac, dd='', fname = ''):
     
     evts = events_frac[['bzm','bzm_predicted','tau','tau_predicted','frac','dtheta_z','theta_z_max']]\
                         .iloc[np.where((events_frac.geoeff == 1))[0]]
     
     ax = evts.iloc[np.where(evts.theta_z_max < 0.0)[0]].boxplot(column = 'dtheta_z', by='frac')
     fig = ax.get_figure()
-    fig.savefig('valid/plots/dtheta_'+fname+'.jpeg', format = 'jpeg')
+    fig.savefig(dd+'dtheta_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
     
     #plot max theta
     ax = evts.iloc[np.where(evts.theta_z_max < 0.0)[0]].boxplot(column = 'theta_z_max', return_type='axes')
     fig = ax.get_figure()
-    fig.savefig('valid/plots/theta_max_'+fname+'.jpeg', format = 'jpeg')
+    fig.savefig(dd+ 'theta_max_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
 
-def plot_boxplot(events_frac,fname=''):
+def plot_boxplot(events_frac,dd='' ,fname=''):
     
     #boxplot
     #w = np.where(events_frac.frac == 1.0)[0]
     ax = events_frac.boxplot(column = 'P1_scaled', by = 'geoeff')
     fig = ax.get_figure()
-    fig.savefig('valid/plots/P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
+    fig.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
     
 
-def write_report(events_frac, outname = 'html/mc_predict_test_results', fname = '', P1 = 0.2):
+def write_report(events_frac, dd='', outname = 'html/mc_predict_test_results', fname = '', P1 = 0.2):
     
     
     ##make the plots   
-    plot_predict_bz_tau_frac(events_frac, fname = fname)
-    plot_obs_vs_predict(events_frac, fname = fname)
-    plot_bzm_vs_tau_skill(events_frac, P1 = P1, fname = fname)
-    plot_theta(events_frac, fname = fname)
+    plot_predict_bz_tau_frac(events_frac, dd=dd, fname = fname)
+    plot_obs_vs_predict(events_frac, dd=dd, fname = fname)
+    plot_bzm_vs_tau_skill(events_frac, dd=dd, P1 = P1, fname = fname)
+    plot_theta(events_frac, dd=dd, fname = fname)
     
     #missed, false = sort_incorrect(events_frac, fname = fname)
     
