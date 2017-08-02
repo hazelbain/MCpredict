@@ -423,7 +423,7 @@ def write_report(events_frac, dd='', outname = 'html/mc_predict_test_results', f
     
     
     
-def sort_incorrect(events_frac, fname = ''):
+def sort_incorrect(events_frac, fname = '', mv_files = 1):
     
     import shutil
     import calendar
@@ -433,10 +433,13 @@ def sort_incorrect(events_frac, fname = ''):
     #missed = events_frac_predict2.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
     #false = events_frac_predict2.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='dst',ascending=1)[['start','dst','P1_scaled']]
 
-    missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
-    false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='start')[['start','dst','P1_scaled']]
+    missed = events_frac.query('geoeff == 1.0 and frac == 1.0 and P1_scaled < 0.2').sort_values(by='start')[['start','dst','geoeff','P1_scaled','bzm','bzm_predicted','tau','tau_predicted']]
+    false = events_frac.query('geoeff == 0.0 and frac == 1.0 and P1_scaled > 0.2').sort_values(by='start')[['start','dst','geoeff','P1_scaled','bzm','bzm_predicted','tau','tau_predicted']]
     
-    dd_longterm = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_th2/'
+    if mv_files == 0:
+        return missed, false
+    
+    dd_longterm = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_'+fname+'/'
     dd_missed = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/missed_'+fname+'/'
     dd_false = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/false_'+fname+'/'
     
@@ -460,11 +463,11 @@ def sort_incorrect(events_frac, fname = ''):
     for i in range(len(false)):
                 
         #construct filename
-        year = missed.start.iloc[i].year
-        mnth = missed.start.iloc[i].month                
+        year = false.start.iloc[i].year
+        mnth = false.start.iloc[i].month                
         cal = calendar.Calendar()
         week_begin = [j[0] for j in cal.monthdatescalendar(year, mnth)]
-        fdate = week_begin[np.max(np.where(missed.start.iloc[i].date() >= np.asarray(week_begin)))]
+        fdate = week_begin[np.max(np.where(false.start.iloc[i].date() >= np.asarray(week_begin)))]
         false_str = dd_longterm + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
         new_loc = dd_false + 'mcpredict_'+ datetime.datetime.strftime(fdate, '%Y-%m-%d') + '_0000.pdf'
         
