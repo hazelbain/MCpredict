@@ -898,14 +898,14 @@ def predict_duration(data, istart, iend, component = 'z'):
         
             #fill in rest of data record for remaining portion if what is left is less
             #than one step size
-            if (iend-i) < step:
+            if (iend-i) <= step:                
                 data.loc[i:iend, 'istart_bz'] = istart
                 data.loc[i:iend, 'iend_bz'] = iend         
                 data.loc[i:iend, 'tau_predicted'] = predicted_duration    #[0][0]
                 data.loc[i:iend, 'tau_actual'] = (iend-istart)/60.
                 data.loc[i:iend, 'bzm_predicted'] = predicted_bmax
                 data.loc[i:iend, 'bzm_actual'] = b[istart + index_b_max_val]  
-        
+                data.loc[i:iend, 'i_bzmax'] = i_bmax
         else:
             
             data.loc[i-step:i, 'istart_by'] = istart
@@ -930,7 +930,7 @@ def predict_duration(data, istart, iend, component = 'z'):
         
             #fill in rest of data record for remaining portion if what is left is less
             #than one step size
-            if (iend-i) < step:
+            if (iend-i) <= step:
                 data.loc[i:iend, 'istart_y'] = istart
                 data.loc[i:iend, 'iend_y'] = iend         
                 data.loc[i:iend, 'tau_predicted_y'] = predicted_duration    #[0][0]
