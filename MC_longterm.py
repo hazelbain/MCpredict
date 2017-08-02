@@ -37,10 +37,13 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, ew
             events_frac = load_training_events(fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)
             events_frac = events_frac.replace([np.inf], np.nan).dropna()
+            
+            #events_frac = pickle.load(open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p","rb")) 
+
         else:
             print("Fitting the training data")
             events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0], dst_thresh=dst_thresh)
-        
+            
         if trainpdf == 1:
             #### step 2: use the events_frac from above to generate the bayesian PDF
             print("Creating the PDFs")
@@ -164,7 +167,7 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     #restore prediction matrix
 
     
-    pdf = pickle.load(open("PDFs/Pdict"+fname+"_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p","rb"))
+    pdf = pickle.load(open("PDFs/Pdict_"+fname+"ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p","rb"))
             
     t1 = ['1-jan-2004','1-jan-2005',\
           '1-jan-2006','1-jan-2007','1-jan-2008','1-jan-2009','1-jan-2010','1-jan-2011','1-jan-2012','1-jan-2013',\
