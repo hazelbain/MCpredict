@@ -25,7 +25,9 @@ import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff, dst_geo_tag
 
 
-def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80, dst_thresh_old = -80):
+def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, predict=1, \
+                       ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], \
+                       dst_thresh = -80, dst_thresh_old = -80):
             
     ## TODO: add in fname for plot directories, missed and false
 
@@ -74,10 +76,11 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, ew
     events_frac_predict.drop_duplicates(('start','frac'), inplace = True)
 
     #step 4: prediction (once events are fittng we can skip the first step)
-    print("Predicting the geoeffectiveness")
-    events_frac_predict2 = validate_events(events_frac_predict, fname=fname, \
-            ew=ew, nw=nw, dst_thresh=dst_thresh)
-                
+    if predict == 1:
+        print("Predicting the geoeffectiveness")
+        events_frac_predict2 = validate_events(events_frac_predict, fname=fname, \
+                ew=ew, nw=nw, dst_thresh=dst_thresh)
+               
     ##!!!!!!!!! check the boxplot to get the threshold P1 !!!!!!!!###
         
     ##write report
