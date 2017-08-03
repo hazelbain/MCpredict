@@ -278,7 +278,7 @@ def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, dd = '', outname = 'bzm_vs_tau_
                      frameon=True, scatterpoints = 1 )
     leg1.get_frame().set_alpha(0.5)
    
-    plt.savefig(dd + outname + '_' + fname + '.jpeg', format='jpeg')
+    plt.savefig(dd + outname + '_' + fname + '_P'+ str(P1) +'.jpeg', format='jpeg')
     
     plt.close()
     
@@ -365,7 +365,7 @@ def write_report(events_frac, dd='', outname = 'html/mc_predict_test_results', f
     
     
     ##open the html file
-    f = open(outname + '_' + fname + '.html', 'w')
+    f = open(outname + '_' + fname + '_'+ str(P1) + '.html', 'w')
      
     f.write('<!DOCTYPE html>\n')
     f.write('<html>\n')
@@ -407,7 +407,7 @@ def write_report(events_frac, dd='', outname = 'html/mc_predict_test_results', f
 #==============================================================================
     
     #images 
-    f.write('  <img src="valid/plots/bzm_vs_tau_skill' + '_' + fname + '.jpeg" alt="bzm_vs_tau_skill">\n\n\n')
+    f.write('  <img src="valid/plots/bzm_vs_tau_skill' + '_' + fname + '_P'+ str(P1) + '.jpeg" alt="bzm_vs_tau_skill">\n\n\n')
     f.write('  <img src="valid/plots/bzm_obs_vs_predicted' + '_' + fname + '.jpeg" alt="bzm_obs_vs_predicted" ">\n\n\n')
     f.write('  <img src="valid/plots/bztau_predict' + '_' + fname + '.jpeg" alt="bztau_predict">\n\n\n')
     f.write('  <img src="valid/plots/dtheta_' + fname + '.jpeg" alt="dtheta">\n\n\n')
