@@ -27,7 +27,7 @@ from MCpredict import predict_geoeff, dst_geo_tag
 
 def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, predict=1, \
                        ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], \
-                       dst_thresh = -80, dst_thresh_old = -80):
+                       dst_thresh = -80, dst_thresh_old = -80, P1 = 0.2):
             
     ## TODO: add in fname for plot directories, missed and false
 
@@ -88,7 +88,7 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, pr
     for e in ew:
         for n in nw:
             events_frac_predict2 = pickle.load(open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
-            mcplt.write_report(events_frac_predict2, dd = "valid/plots/", fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = 0.2)
+            mcplt.write_report(events_frac_predict2, dd = "valid/plots/", fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = P1)
         
     return events_frac_predict2
     
@@ -276,7 +276,7 @@ def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.
             #mcplt.plot_bzmp_vs_taup_skill(events_frac_predict, dd = "valid/plots/", P1 = 0.1, fname=fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
             
             #boxplot
-            mcplt.plot_boxplot(events_frac_predict2, fname = fname+'predict_ew'+str(e)+'_nw'+str(n)+"_dst"+str(abs(dst_thresh)))
+            mcplt.plot_boxplot(events_frac_predict2, dd = 'valid/plots/', fname = fname+'predict_ew'+str(e)+'_nw'+str(n)+"_dst"+str(abs(dst_thresh)))
 
     
     return events_frac_predict2
