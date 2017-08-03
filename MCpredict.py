@@ -1102,12 +1102,8 @@ def predict_geoeff(events_frac, pdf):
 
     for i in range(len(events_frac.start)):
     
-        #print("predict0000")
-        
-        if events_frac.frac.iloc[i] != 1.0:
-            continue
-        
-        #print(events_frac.frac.iloc[i])
+        #if events_frac.frac.iloc[i] != 1.0:
+        #    continue
         
         #find the plane of probabilities for estimates bzmp and taup
         bzmp_ind[i] = np.max(np.where(pdf['axis_vals'][0] < events_frac.bzm_predicted.iloc[i])[0])
