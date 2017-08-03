@@ -25,7 +25,8 @@ import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff, dst_geo_tag
 
 
-def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, predict=1, \
+def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, \
+                       validfit=0, predict=1, report=1, \
                        ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], \
                        dst_thresh = -80, dst_thresh_old = -80, P1 = 0.2):
             
@@ -84,12 +85,13 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, pr
     ##!!!!!!!!! check the boxplot to get the threshold P1 !!!!!!!!###
         
     ##write report
-    print("Writing Report")
-    for e in ew:
-        for n in nw:
-            events_frac_predict2 = pickle.load(open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
-            mcplt.write_report(events_frac_predict2, dd = "valid/plots/", fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = P1)
-        
+    if report == 1:
+        print("Writing Report")
+        for e in ew:
+            for n in nw:
+                events_frac_predict2 = pickle.load(open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
+                mcplt.write_report(events_frac_predict2, dd = "valid/plots/", fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = P1)
+            
     return events_frac_predict2
     
 
@@ -101,8 +103,8 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
     t1 = ['1-jan-1998','1-jan-1999','1-jan-2000','1-jan-2001','1-jan-2002','1-jan-2003']
     t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003']
     
-    #t1 = ['1-jan-2005']
-    #t2 = ['7-jan-2005']
+    #t1 = ['1-jan-1999']
+    #t2 = ['31-jan-1999']
     
     events = pd.DataFrame()             #observational event characteristics for all MCs
     events_frac = pd.DataFrame()        #predicted events characteristics split into fraction of an event
