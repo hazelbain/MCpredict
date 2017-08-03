@@ -71,6 +71,7 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, validfit=0, ew
         print("Loading the validation data")
         events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
 
+    events_frac_predict.drop_duplicates(('start','frac'), inplace = True)
 
     #step 4: prediction (once events are fittng we can skip the first step)
     print("Predicting the geoeffectiveness")
