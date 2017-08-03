@@ -397,12 +397,34 @@ def plot_theta(events_frac, dd='', fname = ''):
 def plot_boxplot(events_frac,dd='' ,fname=''):
     
     #boxplot
-    #w = np.where(events_frac.frac == 1.0)[0]
-    ax = events_frac.boxplot(column = 'P1_scaled', by = 'geoeff')
-    fig = ax.get_figure()
-    fig.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
-    plt.close('all')
+    #ax = evts_frac.boxplot(column = 'P1_scaled', by = 'geoeff')
+    #fig = ax.get_figure()
+    #fig.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
+    #plt.close('all')
     
+    plt.figure(1)
+    plt.subplot(5,1,1)
+    evts = events_frac.query('frac = 0.2')
+    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+    
+    plt.subplot(5,1,2)
+    evts = events_frac.query('frac = 0.4')
+    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+    
+    plt.subplot(5,1,3)
+    evts = events_frac.query('frac = 0.6')
+    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+    
+    plt.subplot(5,1,4)
+    evts = events_frac.query('frac = 0.8')
+    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+    
+    plt.subplot(5,1,5)
+    evts = events_frac.query('frac = 1.0')
+    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+
+    plt.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
+    plt.close('all')
 
 def write_report(events_frac, dd='', outname = 'html/mc_predict_test_results', fname = '', P1 = 0.2):
     
