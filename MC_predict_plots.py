@@ -286,29 +286,91 @@ def plot_bzm_vs_tau_skill(events_frac, P1 = 0.2, dd = '', outname = 'bzm_vs_tau_
 def plot_obs_vs_predict(events_frac, dd = '', outname = 'bzm_obs_vs_predicted', fname = ''):
      
     from matplotlib.font_manager import FontProperties
-        
-    
-    evts = events_frac.query('geoeff == 1.0 and frac == 1.0')[['bzm','tau','bzm_predicted','tau_predicted']]
-    
-                           
+                     
     fontP = FontProperties()                #legend
     fontP.set_size('medium')                       
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-                       
+    fig, ((ax1, ax11),(ax2, ax22),(ax3, ax33),(ax4, ax44),(ax5, ax55))  = plt.subplots(5, 2, figsize=(10, 25))
+       
+    evts = events_frac.query('geoeff == 1.0 and frac == 0.2')[['bzm','tau','bzm_predicted','tau_predicted']]
+                
     ax1.scatter(evts['bzm'], evts['bzm_predicted'])                       
-    ax1.set_ylim(-60,60)
-    ax1.set_xlim(-60,60)
+    ax1.set_ylim(-150,150)
+    ax1.set_xlim(-150,150)
     ax1.set_xlabel("$\mathrm{B_{zm}}$ obs (nT)")
     ax1.set_ylabel("$\mathrm{B_{zm}}$ obs (nT)")
-    ax1.set_title("Bzm obs vs predicted")
+    ax1.set_title("Bzm obs vs predicted (f 0.2)")
     
-    ax2.scatter(evts['tau'], evts['tau_predicted'])                       
-    ax2.set_ylim(0,100)
-    ax2.set_xlim(0,100)
-    ax2.set_xlabel("tau obs (nT)")
-    ax2.set_ylabel("tau obs (nT)")
-    ax2.set_title("Tau obs vs predicted")
+    ax11.scatter(evts['tau'], evts['tau_predicted'])                       
+    ax11.set_ylim(0,250)
+    ax11.set_xlim(0,250)
+    ax11.set_xlabel("tau obs (nT)")
+    ax11.set_ylabel("tau obs (nT)")
+    ax11.set_title("Tau obs vs predicted (f 0.2)")
+    
+    evts = events_frac.query('geoeff == 1.0 and frac == 0.4')[['bzm','tau','bzm_predicted','tau_predicted']]
+                
+    ax2.scatter(evts['bzm'], evts['bzm_predicted'])                       
+    ax2.set_ylim(-150,150)
+    ax2.set_xlim(-150,150)
+    ax2.set_xlabel("$\mathrm{B_{zm}}$ obs (nT)")
+    ax2.set_ylabel("$\mathrm{B_{zm}}$ obs (nT)")
+    ax2.set_title("Bzm obs vs predicted (f 0.4)")
+    
+    ax22.scatter(evts['tau'], evts['tau_predicted'])                       
+    ax22.set_ylim(0,250)
+    ax22.set_xlim(0,250)
+    ax22.set_xlabel("tau obs (nT)")
+    ax22.set_ylabel("tau obs (nT)")
+    ax22.set_title("Tau obs vs predicted  (f 0.4)")
+    
+    evts = events_frac.query('geoeff == 1.0 and frac == 0.6')[['bzm','tau','bzm_predicted','tau_predicted']]
+                
+    ax3.scatter(evts['bzm'], evts['bzm_predicted'])                       
+    ax3.set_ylim(-150,150)
+    ax3.set_xlim(-150,150)
+    ax3.set_xlabel("$\mathrm{B_{zm}}$ obs (nT)")
+    ax3.set_ylabel("$\mathrm{B_{zm}}$ obs (nT)")
+    ax3.set_title("Bzm obs vs predicted  (f 0.6)")
+    
+    ax33.scatter(evts['tau'], evts['tau_predicted'])                       
+    ax33.set_ylim(0,250)
+    ax33.set_xlim(0,250)
+    ax33.set_xlabel("tau obs (nT)")
+    ax33.set_ylabel("tau obs (nT)")
+    ax33.set_title("Tau obs vs predicted (f 0.6)")
+    
+    evts = events_frac.query('geoeff == 1.0 and frac == 0.8')[['bzm','tau','bzm_predicted','tau_predicted']]
+                
+    ax4.scatter(evts['bzm'], evts['bzm_predicted'])                       
+    ax4.set_ylim(-150,150)
+    ax4.set_xlim(-150,150)
+    ax4.set_xlabel("$\mathrm{B_{zm}}$ obs (nT)")
+    ax4.set_ylabel("$\mathrm{B_{zm}}$ obs (nT)")
+    ax4.set_title("Bzm obs vs predicted (f 0.8)")
+    
+    ax44.scatter(evts['tau'], evts['tau_predicted'])                       
+    ax44.set_ylim(0,250)
+    ax44.set_xlim(0,250)
+    ax44.set_xlabel("tau obs (nT)")
+    ax44.set_ylabel("tau obs (nT)")
+    ax44.set_title("Tau obs vs predicted (f 0.8)")
+    
+    evts = events_frac.query('geoeff == 1.0 and frac == 1.0')[['bzm','tau','bzm_predicted','tau_predicted']]
+                
+    ax5.scatter(evts['bzm'], evts['bzm_predicted'])                       
+    ax5.set_ylim(-150,150)
+    ax5.set_xlim(-150,150)
+    ax5.set_xlabel("$\mathrm{B_{zm}}$ obs (nT)")
+    ax5.set_ylabel("$\mathrm{B_{zm}}$ obs (nT)")
+    ax5.set_title("Bzm obs vs predicted (f 1.0)")
+    
+    ax55.scatter(evts['tau'], evts['tau_predicted'])                       
+    ax55.set_ylim(0,250)
+    ax55.set_xlim(0,250)
+    ax55.set_xlabel("tau obs (nT)")
+    ax55.set_ylabel("tau obs (nT)")
+    ax55.set_title("Tau obs vs predicted (f 1.0)")
 
     plt.savefig(dd + outname + '_' + fname + '.jpeg', format='jpeg')
     
