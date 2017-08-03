@@ -402,7 +402,7 @@ def plot_boxplot(events_frac,dd='' ,fname=''):
     #fig.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
     #plt.close('all')
     
-    plt.figure(1)
+    plt.figure(1, figsize=(7, 25))
     plt.subplot(5,1,1)
     evts = events_frac.query('frac = 0.2')
     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
