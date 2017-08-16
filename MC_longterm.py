@@ -25,9 +25,10 @@ import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff, dst_geo_tag
 
 
-def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, \
+def train_and_validate(fname='', train_fname='', valid_fname='', \
+                       train=1, trainfit=0, trainpdf=1, \
                        validfit=0, predict=1, report=1, \
-                       ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], \
+                       ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], nbins=[50j,100j], \
                        dst_thresh = -80, dst_thresh_old = -80, P1 = 0.2):
             
     ## TODO: add in fname for plot directories, missed and false
@@ -37,28 +38,27 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, \
         #step 1: fit the training events
         if trainfit == 0:
             print("Loading the training data")
-            events_frac = load_training_events(fname, ew[0], nw[0], \
+            events_frac = load_training_events(train_fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)
-            events_frac = events_frac.replace([np.inf], np.nan).dropna()
-            
-            #events_frac = pickle.load(open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p","rb")) 
-
         else:
             print("Fitting the training data")
             events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0], dst_thresh=dst_thresh)
             
+        events_frac.tau_predicted.iloc[np.where((events_frac.frac == 0.0) & (events_frac.tau_predicted == np.inf))] = 0.0
+        events_frac.drop_duplicates(('start','frac'), inplace = True)
+        
         if trainpdf == 1:
             #### step 2: use the events_frac from above to generate the bayesian PDF
             print("Creating the PDFs")
             for e in ew:
                 for n in nw:
-                    pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, \
+                    pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, nbins=nbins, \
                             fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)))
                 
         #step 3: fit the validation events 
         if validfit == 0:
             print("Loading the validation data")
-            events_frac_predict = load_validation_events(fname, ew[0], nw[0], \
+            events_frac_predict = load_validation_events(valid_fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)   
         else:
             print("Fitting the validation data")
@@ -72,7 +72,7 @@ def train_and_validate(fname='', train=1, trainfit=0, trainpdf=1, \
     else:
         #read in events
         print("Loading the validation data")
-        events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
+        events_frac_predict = pickle.load(open("valid/events_frac_"+valid_fname+"valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
 
     events_frac_predict.drop_duplicates(('start','frac'), inplace = True)
 
@@ -191,7 +191,7 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     for i in range(len(t1)):
         
         events_tmp, events_frac_tmp = find_events(t1[i], t2[i], pdf = pdf, plotting=1, \
-                    ew=ew, nw=nw, dst_thresh = dst_thresh, csv=0, livedb = 1, predict = 0)
+                    ew=ew, nw=nw, dst_thresh = dst_thresh, csv=0, livedb = 0, predict = 0)
         
         events_predict = events_predict.append(events_tmp)
         events_frac_predict = events_frac_predict.append(events_frac_tmp)

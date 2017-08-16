@@ -45,7 +45,7 @@ def get_data(tstart, tend, server = 'swds-st', \
 
     from datetime import timedelta
     import os
-        
+    
     #convert times to datetime
     st = datetime(int(tstart.split('-')[0]), int(tstart.split('-')[1]), int(tstart.split('-')[2]))
     et = datetime(int(tend.split('-')[0]), int(tend.split('-')[1]), int(tend.split('-')[2]))
@@ -53,7 +53,7 @@ def get_data(tstart, tend, server = 'swds-st', \
     #datafile dates to check for
     dates_to_check = [st + timedelta(int(i)) for i in np.arange(0,(et-st).days+1)]
     for d in dates_to_check:
-        
+
         #if there is no datafile for that day or livedb is set, get the data from the databacse
         if not os.path.isfile(outpath + '/' + view + '/' + \
                               view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv') \
@@ -64,7 +64,7 @@ def get_data(tstart, tend, server = 'swds-st', \
             data_tmp0 = read_database(t, t, server = server, \
                                  database = database, view=view, \
                                  csv=csv, outpath=outpath+ '/' + view + '/')
-            
+
             #parse the data to format
             if view == 'ace_mag_1m':
                 data_tmp = parse_ace_mag_1m_db(data_tmp0)
@@ -178,7 +178,7 @@ def read_database(tstart, tend, server = 'swds-st', \
     col_name = [column[0] for column in cursor.description]
     #col_fmt = (datetime, '<i4', '|S10', '|S10', '|S10', '|S10', '|S10', '|S10')
     col_fmt = [column[1] for column in cursor.description]
-    
+
     #return all rows from search
     all_rows = cursor.fetchall()
     
