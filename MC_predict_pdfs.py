@@ -42,6 +42,8 @@ from scipy import stats
 import pickle as pickle
 import scipy.integrate as integrate
    
+import kde_hb as hb
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
@@ -115,6 +117,13 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     Pe = P_e(events_frac)
     Pn = P_n(events_frac)
     
+    #Add a perturbation to Bzmp to break symmtry for KDE to work
+    b_indices = np.mgrid[ranges[0]:ranges[1]:nbins[0]]
+    delta_b = b_indices[1] - b_indices[0]
+    np.random.seed(2)
+    events_frac.bzm_predicted = events_frac.bzm_predicted + np.random.uniform(-delta_b, delta_b, len(events_frac))
+    
+    
     Pbzm_tau_e, norm_bzm_tau_e = P_bzm_tau_e(events_frac, ranges=ranges,\
         nbins=nbins, kernel_width = ew, plotfig = plotting[0])
     
@@ -138,105 +147,107 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     
     
     ##plot all pdfs in output figure       
+    for i in np.arange(1,6):
     
-    gbzm = events_frac.bzm.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff == 1.0) & (events_frac.bzm < 0.0))[0]]
-    gtau = events_frac.tau.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff == 1.0) & (events_frac.bzm < 0.0))[0]]
-    
-    gbzmn = events_frac.bzm.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff != 1.0) & (events_frac.bzm < 0.0))[0]]
-    gtaun = events_frac.tau.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff != 1.0) & (events_frac.bzm < 0.0))[0]]
-    
-    gbzmp = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff == 1.0))[0]]
-    gtaup = events_frac.tau_predicted.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff == 1.0))[0]]
-    gbzmp.iloc[np.where(np.isnan(gbzmp))[0]] = 0.0
-    gtaup.iloc[np.where(np.isnan(gtaup))[0]] = 0.0
+        gbzm = events_frac.bzm.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff == 1.0) & (events_frac.bzm < 0.0))[0]]
+        gtau = events_frac.tau.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff == 1.0) & (events_frac.bzm < 0.0))[0]]
         
-    gbzmp_n = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff != 1.0))[0]]
-    gtaup_n = events_frac.tau_predicted.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff != 1.0))[0]]
-    gbzmp_n.iloc[np.where(np.isnan(gbzmp_n))[0]] = 0.0
-    gtaup_n.iloc[np.where(np.isnan(gtaup_n))[0]] = 0.0
-    
-    fig, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2,figsize = (8.5,11))
-    fontP = FontProperties()
-    fontP.set_size('x-small')
-    
-    c1 = ax1.imshow(np.rot90(Pbzm_tau_e), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax1.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
-    ax1.set_xlim([ranges[0], ranges[1]])
-    ax1.set_ylim([0, ranges[3]])
-    ax1.set_xlabel('Bzm')
-    ax1.set_ylabel('Tau')
-    ax1.set_title('P_bzm_tau_e, bandwidth = '+str(ew), fontsize = 'small')
-    #fig.colorbar(c1, ax = ax1, fraction=0.025)
-    leg1 = ax1.legend(loc='upper right', prop = fontP, fancybox=True)
-    leg1.get_frame().set_alpha(0.5)
-    
-    c2 = ax2.imshow(np.rot90(Pbzmp_taup_e[:,:,5]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax2.plot(gbzmp, gtaup, 'k.', markersize=4, c='r', label = 'bzmp, taup, g = 1')
-    ax2.set_xlim([ranges[0], ranges[1]])
-    ax2.set_ylim([0, ranges[3]])
-    ax2.set_xlabel('Bzm_p')
-    ax2.set_ylabel('Tau_p')
-    ax2.set_title('P_bzmp_taup_e, bandwidth = '+str(ew), fontsize = 'small')
-    #fig.colorbar(c2, ax = ax2, fraction=0.025)
-    leg2 = ax2.legend(loc='upper right', prop = fontP, fancybox=True)
-    leg2.get_frame().set_alpha(0.5)
-    
-    c3 = ax3.imshow(np.rot90(Pbzmp_taup_n[:,:,5]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax3.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b', label = 'bzmp, taup, g = 0')
-    ax3.set_xlim([ranges[0], ranges[1]])
-    ax3.set_ylim([0, ranges[3]])
-    ax3.set_xlabel('Bzm_p')
-    ax3.set_ylabel('Tau_p')
-    ax3.set_title('P_bzmp_taup_n, bandwidth = '+str(nw), fontsize = 'small')
-    #fig.colorbar(c3, ax = ax3, fraction=0.025)
-    leg3 = ax3.legend(loc='upper right', prop = fontP, fancybox=True)
-    leg3.get_frame().set_alpha(0.5)
-
-    #print(np.squeeze(indices).shape)
-    predicted_duration = 15.0
-    predicted_bzmax = -26.0
-    indt = np.min(np.where(indices[3,:] > predicted_duration))
-    indb = np.max(np.where(indices[2,:] < predicted_bzmax))
-
-    c4 = ax4.imshow(np.rot90(Pbzmp_taup_bzm_tau_e[:,:,indb,indt,5]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax4.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b', label = 'bzmp, taup, g = 0')
-    ax4.plot(gbzmp, gtaup, 'k.', markersize=4, c='r', label = 'bzmp, taup, g = 1')
-    ax4.set_xlim([ranges[0], ranges[1]])
-    ax4.set_ylim([0, ranges[3]])
-    ax4.set_xlabel('Bzm_p')
-    ax4.set_ylabel('Tau_p')
-    ax4.set_title('P_bzm_tau_bzmp_taup_e, bandwidth = '+str(ew), fontsize = 'small')
-    #fig.colorbar(c4, ax = ax4, fraction=0.025)
-    leg4 = ax4.legend(loc='upper right', prop = fontP, fancybox=True)
-    leg4.get_frame().set_alpha(0.5)
-    
-    c5 = ax5.imshow(np.rot90(Pbzm_tau_e_bzmp_taup[:,:,indb,indt,5]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax5.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 1')
-    ax5.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
-    ax5.set_xlim([ranges[0], ranges[1]])
-    ax5.set_ylim([0, ranges[3]])
-    ax5.set_xlabel('Bzm_p')
-    ax5.set_ylabel('Tau_p')
-    ax5.set_title('P_bzm_tau_e_bzmp_taup, bandwidth = '+str(ew), fontsize = 'small')
-    #fig.colorbar(c5, ax = ax5, fraction=0.025)
-    leg5 = ax5.legend(loc='upper right', prop = fontP, fancybox=True)
-    leg5.get_frame().set_alpha(0.5)
-
-    c6 = ax6.imshow(np.rot90(P1_map[:,:,5]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-    ax6.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 0')
-    ax6.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
-    ax6.set_xlim([ranges[0], ranges[1]])
-    ax6.set_ylim([0, ranges[3]])
-    ax6.set_xlabel('Bzm_p')
-    ax6.set_ylabel('Tau_p')
-    ax6.set_title('P1_map, bandwidth = '+str(ew), fontsize = 'small')
-    fig.colorbar(c6, ax = ax6, fraction=0.025, format='%2.2f')
-    leg6 = ax6.legend(loc='upper right', prop = fontP, fancybox=True)
-    leg6.get_frame().set_alpha(0.5)
+        gbzmn = events_frac.bzm.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff != 1.0) & (events_frac.bzm < 0.0))[0]]
+        gtaun = events_frac.tau.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff != 1.0) & (events_frac.bzm < 0.0))[0]]
+        
+        gbzmp = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff == 1.0))[0]]
+        gtaup = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff == 1.0))[0]]
+        gbzmp.iloc[np.where(np.isnan(gbzmp))[0]] = 0.0
+        gtaup.iloc[np.where(np.isnan(gtaup))[0]] = 0.0
+            
+        gbzmp_n = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff != 1.0))[0]]
+        gtaup_n = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff != 1.0))[0]]
+        gbzmp_n.iloc[np.where(np.isnan(gbzmp_n))[0]] = 0.0
+        gtaup_n.iloc[np.where(np.isnan(gtaup_n))[0]] = 0.0
 
 
-    fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/PDFs/plots/allpdfs_'+fname+'.pdf')
-    plt.close()
+        fig, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2,figsize = (8.5,11))
+        fontP = FontProperties()
+        fontP.set_size('x-small')
+        
+        c1 = ax1.imshow(np.rot90(Pbzm_tau_e), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax1.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
+        ax1.set_xlim([ranges[0], ranges[1]])
+        ax1.set_ylim([0, ranges[3]])
+        ax1.set_xlabel('Bzm')
+        ax1.set_ylabel('Tau')
+        ax1.set_title('P_bzm_tau_e, bandwidth = '+str(ew), fontsize = 'small')
+        #fig.colorbar(c1, ax = ax1, fraction=0.025)
+        leg1 = ax1.legend(loc='upper right', prop = fontP, fancybox=True)
+        leg1.get_frame().set_alpha(0.5)
+        
+        c2 = ax2.imshow(np.rot90(Pbzmp_taup_e[:,:,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax2.plot(gbzmp, gtaup, 'k.', markersize=4, c='r', label = 'bzmp, taup, g = 1')
+        ax2.set_xlim([ranges[0], ranges[1]])
+        ax2.set_ylim([0, ranges[3]])
+        ax2.set_xlabel('Bzm_p')
+        ax2.set_ylabel('Tau_p')
+        ax2.set_title('P_bzmp_taup_e, bandwidth = '+str(ew), fontsize = 'small')
+        #fig.colorbar(c2, ax = ax2, fraction=0.025)
+        leg2 = ax2.legend(loc='upper right', prop = fontP, fancybox=True)
+        leg2.get_frame().set_alpha(0.5)
+        
+        c3 = ax3.imshow(np.rot90(Pbzmp_taup_n[:,:,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax3.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b', label = 'bzmp, taup, g = 0')
+        ax3.set_xlim([ranges[0], ranges[1]])
+        ax3.set_ylim([0, ranges[3]])
+        ax3.set_xlabel('Bzm_p')
+        ax3.set_ylabel('Tau_p')
+        ax3.set_title('P_bzmp_taup_n, bandwidth = '+str(nw), fontsize = 'small')
+        #fig.colorbar(c3, ax = ax3, fraction=0.025)
+        leg3 = ax3.legend(loc='upper right', prop = fontP, fancybox=True)
+        leg3.get_frame().set_alpha(0.5)
+    
+        #print(np.squeeze(indices).shape)
+        predicted_duration = 15.0
+        predicted_bzmax = -26.0
+        indt = np.min(np.where(indices[3,:] > predicted_duration))
+        indb = np.max(np.where(indices[2,:] < predicted_bzmax))
+    
+        c4 = ax4.imshow(np.rot90(Pbzmp_taup_bzm_tau_e[:,:,indb,indt,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax4.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b', label = 'bzmp, taup, g = 0')
+        ax4.plot(gbzmp, gtaup, 'k.', markersize=4, c='r', label = 'bzmp, taup, g = 1')
+        ax4.set_xlim([ranges[0], ranges[1]])
+        ax4.set_ylim([0, ranges[3]])
+        ax4.set_xlabel('Bzm_p')
+        ax4.set_ylabel('Tau_p')
+        ax4.set_title('P_bzm_tau_bzmp_taup_e, bandwidth = '+str(ew), fontsize = 'small')
+        #fig.colorbar(c4, ax = ax4, fraction=0.025)
+        leg4 = ax4.legend(loc='upper right', prop = fontP, fancybox=True)
+        leg4.get_frame().set_alpha(0.5)
+        
+        c5 = ax5.imshow(np.rot90(Pbzm_tau_e_bzmp_taup[:,:,indb,indt,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax5.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 1')
+        ax5.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
+        ax5.set_xlim([ranges[0], ranges[1]])
+        ax5.set_ylim([0, ranges[3]])
+        ax5.set_xlabel('Bzm_p')
+        ax5.set_ylabel('Tau_p')
+        ax5.set_title('P_bzm_tau_e_bzmp_taup, bandwidth = '+str(ew), fontsize = 'small')
+        #fig.colorbar(c5, ax = ax5, fraction=0.025)
+        leg5 = ax5.legend(loc='upper right', prop = fontP, fancybox=True)
+        leg5.get_frame().set_alpha(0.5)
+    
+        c6 = ax6.imshow(np.rot90(P1_map[:,:,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax6.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 0')
+        ax6.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
+        ax6.set_xlim([ranges[0], ranges[1]])
+        ax6.set_ylim([0, ranges[3]])
+        ax6.set_xlabel('Bzm_p')
+        ax6.set_ylabel('Tau_p')
+        ax6.set_title('P1_map, bandwidth = '+str(ew), fontsize = 'small')
+        fig.colorbar(c6, ax = ax6, fraction=0.025, format='%2.2f')
+        leg6 = ax6.legend(loc='upper right', prop = fontP, fancybox=True)
+        leg6.get_frame().set_alpha(0.5)
+    
+    
+        fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/PDFs/plots/allpdfs_'+fname+'_f'+str(i/5.)+'.pdf')
+        plt.close()
 
     #create a dictionary to return PDFs etc
     P_dict = {}
@@ -252,6 +263,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     P_dict["norm_bzmp_taup_bzm_tau_e"] = norm_bzmp_taup_bzm_tau_e
     P_dict["P0"] = P0
     P_dict["tmpint"] =tmpint
+    P_dict["indices"] = indices
     P_dict["P_bzm_tau_e_bzmp_taup"] = Pbzm_tau_e_bzmp_taup
     P_dict["norm_bzm_tau_e_bzmp_taup"] = norm_bzm_tau_e_bzmp_taup
     P_dict["axis_vals"] = axis_vals
@@ -876,18 +888,21 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     #P_bzmp_taup_bzm_tau_e is a function of the fraction of time f throughout an event
     #currently the fit to the data considers every 5th of an event 
     Ptmp_bzmp_taup_bzm_tau_e = np.zeros((db2,dt2,db2,dt2,6))
-    #for i in np.arange(6)*0.2:
+    for i in np.arange(6)*0.2:
     # TODO:
-    for i in [1.0]: 
+    #for i in [1.0]: 
         
         #extract raw data points from dataframe of estimates bzm' and tau' for 
         #fraction f throughout eoeffective events
         gbzmp = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
         gtaup = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
         
-        gbzmp.iloc[np.where(np.isnan(gbzmp))[0]] = 0.0
-        gtaup.iloc[np.where(np.isnan(gtaup))[0]] = 0.0
-        
+        #gbzmp.iloc[np.where(np.isnan(gbzmp))[0]] = 0.0
+        #gtaup.iloc[np.where(np.isnan(gtaup))[0]] = 0.0
+                
+        gbzmp_n = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 0.0))[0]]
+        gtaup_n = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 0.0))[0]]
+
         #extract raw data points from dataframe of estimates bzm and tau for 
         #fraction f throughout eoeffective events
         gbzm = events_frac.bzm.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
@@ -919,9 +934,16 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
         elif kernel_alg == 'scipy_stats':    
             
             positions = np.vstack([X_bzmp.ravel(), Y_taup.ravel(), XX_bzm.ravel(), YY_tau.ravel()])
-            values = np.vstack([gbzmp_r, gtaup_r, gbzm_r, gtau_r])            
-            kernel_bzmp_taup_bzm_tau_e = stats.gaussian_kde(values, bw_method = ew)
-            Ptmp_bzmp_taup_bzm_tau_e[:,:,:,:,int(i*5)] = np.reshape(kernel_bzmp_taup_bzm_tau_e(positions).T, X_bzmp.shape)
+            values = np.vstack([gbzmp_r, gtaup_r, gbzm_r, gtau_r])  
+            
+            try:
+                kernel_bzmp_taup_bzm_tau_e = stats.gaussian_kde(values, bw_method = ew)
+                Ptmp_bzmp_taup_bzm_tau_e[:,:,:,:,int(i*5)] = np.reshape(kernel_bzmp_taup_bzm_tau_e(positions).T, X_bzmp.shape)
+            except Exception as e:
+                print(e.__doc__)
+                #print(e.message)
+                break
+            
  
     #set the density estimate to 0 for negative tau, and x4 for positve tau 
     P_bzmp_taup_bzm_tau_e = Ptmp_bzmp_taup_bzm_tau_e[:,dt0::,:,dt0::,:]*4       #*50*50*2    
@@ -962,8 +984,8 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
         
         fig, ax = plt.subplots()
         c = ax.imshow(np.rot90(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,5]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-        #ax.plot(gbzm, gtau, 'k.', markersize=4, c='r')
-        #ax.plot(gbzm_n, gtau_n, 'k.', markersize=4, c='b')
+        ax.plot(gbzmp, gtaup, 'k.', markersize=4, c='r')
+        ax.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b')
         #ax.set_xlim([bmin, bmax])
         #ax.set_ylim([taumin, tmax])
         ax.set_xlabel('Bzm')
@@ -1068,7 +1090,7 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     
     ############## END MESSING ABOUT WITH CODE #############
     
-    return P_bzmp_taup_bzm_tau_e2, norm_bzmp_taup_bzm_tau_e2, P0_2, tmpint, indices    
+    return P_bzmp_taup_bzm_tau_e2, norm_bzmp_taup_bzm_tau_e2, P0_2, tmpint, indices
 
 
 def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
