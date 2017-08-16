@@ -117,10 +117,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
         each row contains the characteristics for a fraction of each event
 
 
-    """
-    
-    import math
-    
+    """   
     #running in real_time mode
     if real_time == 1:
         print("todo: real-time data required - determine dates for last 24 hours")
@@ -138,11 +135,10 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
         #read in ace_mag_1m data
         mag_data = get_data(sdate, edate, view = 'ace_mag_1m', \
                             csv = csv, livedb = livedb)
-        
+
         sw_data = get_data(sdate, edate, view = 'tb_ace_sw_1m', \
                            csv = csv, livedb = livedb)
-        
-        
+
         #convert to pandas DataFrame
         #MAYBE MOVE THIS STEP INTO THE GET DATA FUNCTION!!!!
         mag = pd.DataFrame(data = mag_data, columns = mag_data.dtype.names)
@@ -158,7 +154,6 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
     #pd.set_option('display.max_rows',100)
     #print(mag_clean.gsm_lat.iloc[0:100])  
     #pd.reset_option('display.max_rows')
-
     
     #Create stucture to hold smoothed data
     col_names = ['date', 'bx', 'by', 'bz', 'bt', 'theta_z', 'theta_y']        
@@ -1101,9 +1096,16 @@ def predict_geoeff(events_frac, pdf):
     P3 = np.zeros((nevents),dtype=float)
 
     for i in range(len(events_frac.start)):
-    
-        #if events_frac.frac.iloc[i] != 1.0:
-        #    continue
+                
+        if events_frac.frac.iloc[i] < 0.2:
+            continue
+        
+        if events_frac.tau_predicted.iloc[i] > 250:
+            continue
+        
+        #print(i)
+        #print(events_frac.frac.iloc[i])
+        #print(events_frac.iloc[i])
         
         #find the plane of probabilities for estimates bzmp and taup
         bzmp_ind[i] = np.max(np.where(pdf['axis_vals'][0] < events_frac.bzm_predicted.iloc[i])[0])
