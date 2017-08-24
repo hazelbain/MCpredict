@@ -49,6 +49,8 @@ import pandas as pd
 from datetime import datetime
 from datetime import timedelta
 
+import sys
+
 def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
                        smooth_num = 25, resultsdir='', \
                        real_time = 0, spacecraft = 'ace',\
@@ -197,6 +199,8 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
     data['theta_y_max'] = 0
     data['dtheta_y'] = 0
     
+    data['lambda'] = 0
+    data['chi'] = 0
     
     
 #==============================================================================
@@ -247,19 +251,20 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
         #now try and predict the duration of the bz component
         predict_duration(data, istart, iend)
 
-#==============================================================================
-#         #find the corresponding By event start and end
-#         print("istart %i iend %i" % (istart, iend))
-#         
-#         istart_y = By_start(data, istart, iend)
-#         
-#         if istart_y != None:
-#             
-#             print("istart %i, iend %i, istart_y %i" % (istart, iend, istart_y))
-#             
-#             #predict the by event duration
-#             predict_duration(data, istart_y, iend, component = 'y')
-#==============================================================================
+        #find the corresponding By event start and end
+        #print("istart %i iend %i" % (istart, iend))
+        istart_y = By_start(data, istart, iend)
+        
+        if istart_y != None:
+            
+            print(istart, data['date'][istart], istart_y, data['date'][istart_y])
+            
+            #predict the by event duration
+            predict_duration(data, istart_y, iend, component = 'y')
+            lambda_chi_calc(data)
+            
+        else:
+            print("by none")
         
 
         if icme_event(istart, iend, len(data['date'])):
@@ -316,16 +321,38 @@ def create_event_dataframe(data, dst_data, pdf, dst_thresh = -80, t_frac = 5, pr
     evt_indices = np.transpose(np.array([data['istart_bz'].drop_duplicates().values[1::], \
                                          data['iend_bz'].drop_duplicates().values[1::]]))
     
+    evt_indices_by = np.transpose(np.array([data['istart_by'].drop_duplicates().values[1::], \
+                                         data['iend_by'].drop_duplicates().values[1::]]))
+
+    
     #start data frame to record each event's characteristics    
-    evt_col_names = ['start', 'bzm', 'tau', 'istart_bz', 'iend_bz','theta_z_max','dtheta_z']        
+    evt_col_names = ['start', 'bzm', 'tau', 'istart_bz', 'iend_bz','theta_z_max','dtheta_z',\
+                     'bym', 'tau_by', 'istart_by', 'iend_by', 'lambda', 'chi']        
     events = pd.concat([data['date'][evt_indices[:,0]],\
                     data['bzm_actual'][evt_indices[:,0]],\
                     data['tau_actual'][evt_indices[:,0]],\
                     data['istart_bz'][evt_indices[:,0]],\
                     data['iend_bz'][evt_indices[:,0]] ,\
                     data['theta_z_max'][evt_indices[:,0]],\
-                    data['dtheta_z'][evt_indices[:,0]] ], axis=1, keys = evt_col_names)
+                    data['dtheta_z'][evt_indices[:,0]], \
+                    
+                    data['bym_actual'][evt_indices[:,0]],\
+                    data['tau_actual_y'][evt_indices[:,0]],\
+                    data['istart_by'][evt_indices[:,0]],\
+                    data['iend_by'][evt_indices[:,0]],\
+                    
+                    data['lambda'][evt_indices[:,0]],\
+                    data['chi'][evt_indices[:,0]] ],\
+                    axis=1, keys = evt_col_names)
+    
     events['end'] =  data['date'][evt_indices[:,1]].values  #needs to be added separately due to different index
+
+    #record the By event start and end times
+    by_start_indx = data['istart_by'][evt_indices[:,0]]
+    by_end_indx = data['iend_by'][evt_indices[:,0]]
+    events['start_by'] = data['date'].iloc[by_start_indx].values
+    events['end_by'] = data['date'].iloc[by_end_indx].values
+    
 
     #get min dst and geoeffective flags
     events = dst_geo_tag(events, dst_data, dst_thresh = dst_thresh, dst_dur_thresh = 2.0)
@@ -353,6 +380,8 @@ def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
     frac = pd.DataFrame({'frac':np.tile(np.arange(t_frac+1)*(100/t_frac/100), len(events)),\
                             'bzm_predicted':0.0,\
                             'tau_predicted':0.0,\
+                            'bym_predicted':0.0,\
+                            'tau_predicted_y':0.0,\
                             'i_bzmax':0})
     
     events_frac = pd.concat([events_frac, frac], axis = 1) 
@@ -360,13 +389,34 @@ def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
     ##bzm at each fraction of an event    
     for i in range(len(evt_indices)):
         
+        #print("here")
+        
         #determine the indices in data for each fraction of an event
         frac_ind = evt_indices[i,0] + (np.arange(t_frac+1)*(100/t_frac/100) * \
                     float(evt_indices[i,1]-evt_indices[i,0])).astype(int)
         
+        #print(data['bzm_predicted'].iloc[frac_ind].values)
+        #print(data['tau_predicted'].iloc[frac_ind].values)
+        #print(np.where(events_frac['evt_index'] == i))
+        
         events_frac['bzm_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bzm_predicted'].iloc[frac_ind].values
         events_frac['tau_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted'].iloc[frac_ind].values
         events_frac['i_bzmax'].iloc[np.where(events_frac['evt_index'] == i)] = data['i_bzmax'].iloc[frac_ind].values
+        
+        events_frac['bym_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bym_predicted'].iloc[frac_ind].values
+        events_frac['tau_predicted_y'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[frac_ind].values
+    
+#==============================================================================
+#     ##bym at each fraction of the Bz event    
+#     for i in range(len(evt_indices_by)):
+#         
+#         #determine the indices in data for each fraction of an event
+#         frac_ind = evt_indices[i,0] + (np.arange(t_frac+1)*(100/t_frac/100) * \
+#                     float(evt_indices[i,1]-evt_indices[i,0])).astype(int)
+#         
+#         events_frac['bym_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bym_predicted'].iloc[frac_ind].values
+#         events_frac['tau_predicted_y'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[frac_ind].values
+#==============================================================================
     
     return events_frac
     
@@ -446,6 +496,20 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     leg = ax0.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
     
+    #plot the fitted profile at certain intervals through the event  
+    if plot_fit == 1:
+        for i in range(len(events_frac)): 
+            #only plot the fits for the geoeffective events
+            if (events_frac['geoeff'].iloc[i] == 1.0) & (events_frac['frac'].iloc[i] >0.1):
+                 
+                #for each fraction of an event, determine the current fit to the profile up to this point
+                pred_dur = events_frac['tau_predicted_y'].iloc[i] * 60.
+                fit_times = [ events_frac['start_by'].iloc[i] + timedelta(seconds = j*60) for j in np.arange(pred_dur)]
+                fit_profile = events_frac['bym_predicted'].iloc[i] * np.sin(np.pi*np.arange(0,1,1./(pred_dur)) )          
+                
+                ax0.plot(fit_times, fit_profile, color=fitcolor[events_frac['frac'].iloc[i]])
+    
+    
     #----Bz
     ax1.plot(data['date'], data['bz'], label='Bz (nT)')
     ax1.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
@@ -524,6 +588,22 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
         ax2.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
     leg = ax2.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
+    
+    #lambda        
+    ax3.plot(data['date'], data['chi'], label='lambda')
+    ax3.hlines(1.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+    ax3.hlines(-1.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+    ax3.set_xticklabels(' ')
+    ax3.xaxis.set_major_locator(daysLoc)
+    ax3.xaxis.set_minor_locator(hoursLoc)
+    ax3.set_xlim([st, et])
+    for l in line:
+        ax3.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for b in range(len(bars)):
+        ax3.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+    leg = ax3.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+    leg.get_frame().set_alpha(0.5)
+    
                   
     #----density
 #==============================================================================
@@ -540,21 +620,23 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
 #     leg.get_frame().set_alpha(0.5)
 #==============================================================================
     
-    #----velocity
-    maxv = max(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) + 50
-    minv =  min(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) - 50
-    ax3.plot(data['date'], data['sw_v'], label='v ($\mathrm{km s^-1}$)')
-    ax3.set_ylim(top = maxv, bottom = minv)
-    ax3.set_xticklabels(' ')
-    ax3.xaxis.set_major_locator(daysLoc)
-    ax3.xaxis.set_minor_locator(hoursLoc)
-    ax3.set_xlim([st, et])
-    for l in line:
-        ax3.axvline(x=l, linewidth=2, linestyle='--', color='black')
-    for b in range(len(bars)):
-        ax3.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15)       
-    leg = ax3.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-    leg.get_frame().set_alpha(0.5)
+#==============================================================================
+#     #----velocity
+#     maxv = max(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) + 50
+#     minv =  min(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) - 50
+#     ax3.plot(data['date'], data['sw_v'], label='v ($\mathrm{km s^-1}$)')
+#     ax3.set_ylim(top = maxv, bottom = minv)
+#     ax3.set_xticklabels(' ')
+#     ax3.xaxis.set_major_locator(daysLoc)
+#     ax3.xaxis.set_minor_locator(hoursLoc)
+#     ax3.set_xlim([st, et])
+#     for l in line:
+#         ax3.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax3.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15)       
+#     leg = ax3.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#==============================================================================
     
     #----predicted and actual duration
     ax4.plot(data['date'], data['tau_predicted'], label='$\mathrm{\tau predicted (hr)}$', ls='solid',c='b')
@@ -699,18 +781,34 @@ def long_duration(istart, iend, min_duration):
 def By_start(data, istart, iend):
 
     """
-    Find the corresponding By rotation
+    Find the start of the preceeding By rotation event
     
     """     
+    
     
     tmp = np.asarray([x*y for x,y in zip(data.by,data.by[1:])])
     tmpneg = np.where(tmp < 0.0)[0]
     
-    if len(np.where((tmpneg >= istart) & (tmpneg <= iend))[0]) > 0:
-        after_by0 = tmpneg[np.min(np.where((tmpneg >= istart) & (tmpneg <= iend))[0])]
-        istart_y = after_by0
+    #print(istart)
+    #print(data['date'][istart])
+    #print(tmpneg)
+    #print(data['date'][tmpneg])    
+    #print(data.by[tmpneg])
+    
+    #By event starting before Bz event
+    if len(np.where(tmpneg <= istart)[0]) > 0:
+        istart_y = tmpneg[np.max(np.where(tmpneg <= istart)[0])]
     else:
         istart_y = None
+    
+#==============================================================================
+#     if len(np.where((tmpneg >= istart) & (tmpneg <= iend))[0]) > 0:
+#         #by event starting after bz event
+#         after_by0 = tmpneg[np.min(np.where((tmpneg >= istart) & (tmpneg <= iend))[0])]
+#         istart_y = after_by0
+#     else:
+#         istart_y = None
+#==============================================================================
 
     #TODO:
     
@@ -724,6 +822,39 @@ def By_start(data, istart, iend):
 
     return istart_y
 
+
+def lambda_chi_calc(data):
+    
+    """
+    Define the varibles lambda and chi which are used in the Chen model
+    framework to determine the relationship between the predicted By and Bz 
+    components and infer the orientation of the magnetic field
+    
+    lambda = By_predicted / Bz_predicted
+    
+    chi = {1, |lambda| > 1,
+           0, |lambda| < 1}
+    """
+    
+    data['lambda'] = data['bym_predicted'] / data['bzm_predicted']
+    data['chi'] = data.apply(chi_define, axis = 1)
+    
+
+def chi_define(data):
+    
+    """
+    Quick function to appply to data dataframe and assing chi based on
+    
+    chi = {1, |lambda| > 1,
+           0, |lambda| < 1}
+    """
+    
+    if abs(data['lambda']) > 1:
+        chi = 1
+    else:
+        chi = 0
+        
+    return chi   
 
 def icme_event(istart, iend, npts):
     
