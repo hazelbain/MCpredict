@@ -253,18 +253,19 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
 
         #find the corresponding By event start and end
         #print("istart %i iend %i" % (istart, iend))
-        istart_y = By_start(data, istart, iend)
+        istart_y, iend_y = By_start(data, istart, iend)
+        #print(istart_y, iend_y)
         
         if istart_y != None:
             
-            print(istart, data['date'][istart], istart_y, data['date'][istart_y])
+            #print(istart, data['date'][istart], istart_y, data['date'][istart_y])
             
             #predict the by event duration
-            predict_duration(data, istart_y, iend, component = 'y')
+            predict_duration(data, istart_y, iend_y, component = 'y')
             lambda_chi_calc(data)
             
-        else:
-            print("by none")
+        #else:
+        #    print("by none")
         
 
         if icme_event(istart, iend, len(data['date'])):
@@ -272,7 +273,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
        
     
     #create new dataframe to record event characteristics
-    events, events_frac = create_event_dataframe(data, dst_data, pdf, dst_thresh=dst_thresh, predict = predict)
+    events, events_frac = create_event_dataframe(data, dst_data, pdf, dst_thresh=dst_thresh, predict = predict)   
     
     #plot some stuff   
     if plotting == 1:
@@ -378,6 +379,8 @@ def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
     events_frac.rename(columns={'level_0':'evt_index', 'index':'data_index'}, inplace=True)
     
     frac = pd.DataFrame({'frac':np.tile(np.arange(t_frac+1)*(100/t_frac/100), len(events)),\
+                            'frac_start':0.0,\
+                            'frac_end':0.0,\
                             'bzm_predicted':0.0,\
                             'tau_predicted':0.0,\
                             'bym_predicted':0.0,\
@@ -394,11 +397,21 @@ def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
         #determine the indices in data for each fraction of an event
         frac_ind = evt_indices[i,0] + (np.arange(t_frac+1)*(100/t_frac/100) * \
                     float(evt_indices[i,1]-evt_indices[i,0])).astype(int)
+        dfrac = frac_ind[1]-frac_ind[0]
+        
         
         #print(data['bzm_predicted'].iloc[frac_ind].values)
         #print(data['tau_predicted'].iloc[frac_ind].values)
         #print(np.where(events_frac['evt_index'] == i))
         
+        #start and end times of each fraction of an event
+        events_frac['frac_start'].iloc[np.where(events_frac['evt_index'] == i)] = data['date'].iloc[frac_ind].values
+        frac_ind_end = frac_ind + dfrac
+        if (frac_ind[-1]+dfrac) >= len(data['date']):           
+            frac_ind_end[-1] = len(data['date'])-1
+        events_frac['frac_end'].iloc[np.where(events_frac['evt_index'] == i)] = data['date'].iloc[frac_ind_end].values
+
+        #predicted bzm, bym ,tau_y and tau_z
         events_frac['bzm_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bzm_predicted'].iloc[frac_ind].values
         events_frac['tau_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted'].iloc[frac_ind].values
         events_frac['i_bzmax'].iloc[np.where(events_frac['evt_index'] == i)] = data['i_bzmax'].iloc[frac_ind].values
@@ -453,6 +466,8 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     import read_dst as dst
     
     import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    from matplotlib.patches import Rectangle
     from matplotlib.font_manager import FontProperties
     from matplotlib.dates import DayLocator
     from matplotlib.dates import HourLocator
@@ -469,7 +484,7 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     #dst_data = dst.read_dst(str(st), str(et))
 
     #plot the ace data
-    f, (ax0, ax1, ax1b, ax2, ax3, ax4, ax5, ax6) = plt.subplots(8, figsize=(11,10))
+    f, (ax0, ax1, ax1b, ax1c, ax2, ax3, ax4, ax5, ax6, ax7) = plt.subplots(10, figsize=(11,13))
  
     plt.subplots_adjust(hspace = .1)       # no vertical space between subplots
     fontP = FontProperties()                #legend
@@ -495,12 +510,27 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
         ax0.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15)        
     leg = ax0.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
+
+    #plot the position of max bz
+    for i in np.arange(5, len(events_frac), 6):
+        if (events_frac['geoeff'].iloc[i] == 1.0):
+            wmax_by = np.where( data['by'].iloc[events_frac['istart_by'].iloc[i] : events_frac['iend_by'].iloc[i]] == events_frac['bym'].iloc[i])[0]
+
+            ax0.axvline(x=data['date'].iloc[events_frac['istart_by'].iloc[i] + wmax_by].values[0], \
+                     linewidth=1, linestyle='--', color='grey')
+
+    #max bz line
+    for b in range(len(bars)):
+        if events_frac['geoeff'].iloc[b*6] == 1.0:
+            ax0.hlines(events_frac['bym'].iloc[b*6], bars[b,0], bars[b,1], linestyle='-',color='grey')
+
     
     #plot the fitted profile at certain intervals through the event  
     if plot_fit == 1:
-        for i in range(len(events_frac)): 
+        for i in range(len(events_frac)):
+            
             #only plot the fits for the geoeffective events
-            if (events_frac['geoeff'].iloc[i] == 1.0) & (events_frac['frac'].iloc[i] >0.1):
+            if (events_frac['geoeff'].iloc[i] == 1.0) & (events_frac['frac'].iloc[i] >0.1) & (events_frac['evt_index'].iloc[i] == 5):
                  
                 #for each fraction of an event, determine the current fit to the profile up to this point
                 pred_dur = events_frac['tau_predicted_y'].iloc[i] * 60.
@@ -551,8 +581,8 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
                 ax1.plot(fit_times, fit_profile, color=fitcolor[events_frac['frac'].iloc[i]])    
 
 
-    #----theta_z
-    ax1b.plot(data['date'], data['theta_z'], label='theta_z')
+    #----theta_y
+    ax1b.plot(data['date'], data['theta_y'], label='theta_y')
     ax1b.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax1b.set_xticklabels(' ')
     ax1b.xaxis.set_major_locator(daysLoc)
@@ -564,6 +594,21 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
         ax1b.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
     leg = ax1b.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
+
+
+    #----theta_z
+    ax1c.plot(data['date'], data['theta_z'], label='theta_z')
+    ax1c.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+    ax1c.set_xticklabels(' ')
+    ax1c.xaxis.set_major_locator(daysLoc)
+    ax1c.xaxis.set_minor_locator(hoursLoc)
+    ax1c.set_xlim([st, et])
+    for l in line:
+        ax1c.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for b in range(len(bars)):
+        ax1c.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+    leg = ax1c.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+    leg.get_frame().set_alpha(0.5)
     
     #plot the position of max theta
     for i in np.arange(5, len(events_frac), 6):
@@ -571,7 +616,7 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
             
             wmax_th = np.where( data['theta_z'].iloc[events_frac['istart_bz'].iloc[i] : events_frac['iend_bz'].iloc[i]] == events_frac['theta_z_max'].iloc[i])[0]
             
-            ax1b.axvline(x=data['date'].iloc[events_frac['istart_bz'].iloc[i] + wmax_th].values[0], \
+            ax1c.axvline(x=data['date'].iloc[events_frac['istart_bz'].iloc[i] + wmax_th].values[0], \
                      linewidth=1, linestyle='--', color='grey')
     
 
@@ -590,13 +635,14 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     leg.get_frame().set_alpha(0.5)
     
     #lambda        
-    ax3.plot(data['date'], data['chi'], label='lambda')
+    ax3.plot(data['date'], data['lambda'], label='lambda')
     ax3.hlines(1.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax3.hlines(-1.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax3.set_xticklabels(' ')
     ax3.xaxis.set_major_locator(daysLoc)
     ax3.xaxis.set_minor_locator(hoursLoc)
     ax3.set_xlim([st, et])
+    ax3.set_ylim(-3,3)
     for l in line:
         ax3.axvline(x=l, linewidth=2, linestyle='--', color='black')
     for b in range(len(bars)):
@@ -666,21 +712,48 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
         ax5.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
     leg = ax5.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
-       
-    #----dst
-    ax6.plot(dst_data[st:et].index, dst_data[st:et]['dst'], label='Dst')
-    ax6.hlines(dst_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+    
+    #----P1    
+    ax6.plot(events_frac['frac_start'], events_frac['P1_scaled'], linestyle = ' ')
     ax6.set_xticklabels(' ')
-    ax6.xaxis.set_major_formatter(dateFmt)
     ax6.xaxis.set_major_locator(daysLoc)
     ax6.xaxis.set_minor_locator(hoursLoc)
     ax6.set_xlim([st, et])
     for l in line:
-        ax6.axvline(x=l, linewidth=2, linestyle='--', color='black')
+        ax6.axvline(x=l, linewidth=2, linestyle='--', color='black') 
     for b in range(len(bars)):
         ax6.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-    ax6.set_xlabel("Start Time "+ str(st)+" (UTC)")
     leg = ax6.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+    leg.get_frame().set_alpha(0.5)
+    ylim = ax6.get_ylim()
+    for i in range(len(events_frac)):
+        x0 = mdates.date2num(events_frac['frac_start'].iloc[i])
+        x1 = mdates.date2num(events_frac['frac_end'].iloc[i]) 
+        width = (x0-x1)
+        y1 = events_frac['P1_scaled'].iloc[i]/ylim[1]
+        if events_frac['P1_scaled'].iloc[i] > 0.2:
+            barcolor = 'red'
+        else:
+            barcolor = 'green'
+        rect = Rectangle((x0 - (width/2.0), 0), width, events_frac['P1_scaled'].iloc[i], color=barcolor)
+        ax6.add_patch(rect)
+        #df = (events_frac['frac_end'].iloc[i] - events_frac['frac_start'].iloc[i]) / 2.
+        #ax6.hlines(events_frac['P1_scaled'].iloc[i], events_frac['frac_start'].iloc[i]-df, events_frac['frac_end'].iloc[i]-df)
+        
+    #----dst
+    ax7.plot(dst_data[st:et].index, dst_data[st:et]['dst'], label='Dst')
+    ax7.hlines(dst_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+    ax7.set_xticklabels(' ')
+    ax7.xaxis.set_major_formatter(dateFmt)
+    ax7.xaxis.set_major_locator(daysLoc)
+    ax7.xaxis.set_minor_locator(hoursLoc)
+    ax7.set_xlim([st, et])
+    for l in line:
+        ax7.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for b in range(len(bars)):
+        ax7.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+    ax7.set_xlabel("Start Time "+ str(st)+" (UTC)")
+    leg = ax7.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
     
     
@@ -797,8 +870,14 @@ def By_start(data, istart, iend):
     
     #By event starting before Bz event
     if len(np.where(tmpneg <= istart)[0]) > 0:
-        istart_y = tmpneg[np.max(np.where(tmpneg <= istart)[0])]
+        idx = np.max(np.where(tmpneg <= istart)[0])
+        istart_y = tmpneg[idx]
+        if (idx + 1) <= (len(tmpneg)-1):
+            iend_y = tmpneg[idx + 1]
+        else:
+            iend_y = iend
     else:
+        iend_y = None
         istart_y = None
     
 #==============================================================================
@@ -820,7 +899,7 @@ def By_start(data, istart, iend):
 #==============================================================================
 
 
-    return istart_y
+    return istart_y, iend_y
 
 
 def lambda_chi_calc(data):
@@ -978,6 +1057,8 @@ def predict_duration(data, istart, iend, component = 'z'):
 
         predicted_duration = abs(dth/rate_of_rotation)/60.           #in hours
         
+        #frac_est = dduration/(predicted_duration*60.)
+        
 #==============================================================================
 #         if ((istart >= 4256) & (iend  <= 4748)):
 #             print("dur: " + str(dduration) + ", rate_rot: " + str(rate_of_rotation) + ", pred_dur: " + str(predicted_duration),\
@@ -996,6 +1077,8 @@ def predict_duration(data, istart, iend, component = 'z'):
             #    predicted_bzmax = data['bzm_predicted'][i-step-1]
         else:
             predicted_bmax = b_max
+            
+        #print(b_max, predicted_bmax, dduration/60., predicted_duration, frac_est)    
                            
         if np.abs(predicted_bmax) > 30.:
             predicted_bmax = b_max 
