@@ -38,11 +38,12 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
         #step 1: fit the training events
         if trainfit == 0:
             print("Loading the training data")
+            ## TODO events_time_frac
             events_frac = load_training_events(train_fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)
         else:
             print("Fitting the training data")
-            events, events_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0], dst_thresh=dst_thresh)
+            events, events_frac, events_time_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0], dst_thresh=dst_thresh)
             
         events_frac.tau_predicted.iloc[np.where((events_frac.frac == 0.0) & (events_frac.tau_predicted == np.inf))] = 0.0
         events_frac.drop_duplicates(('start','frac'), inplace = True)
@@ -103,25 +104,29 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
     t1 = ['1-jan-1998','1-jan-1999','1-jan-2000','1-jan-2001','1-jan-2002','1-jan-2003']
     t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003']
     
-    #t1 = ['1-jan-1999']
-    #t2 = ['31-jan-1999']
+    #t1 = ['1-jan-2000']
+    #t2 = ['31-mar-2000']
     
     events = pd.DataFrame()             #observational event characteristics for all MCs
     events_frac = pd.DataFrame()        #predicted events characteristics split into fraction of an event
+    events_time_frac = pd.DataFrame()        #predicted events characteristics split into time increments
     for i in range(len(t1)):
         
-        events_tmp, events_frac_tmp = find_events(t1[i], t2[i], plotting=1, \
+        events_tmp, events_frac_tmp, events_time_frac_tmp = find_events(t1[i], t2[i], plotting=1, \
                     dst_thresh = dst_thresh, csv=0, livedb = 1)
         
         events = events.append(events_tmp)
         events_frac = events_frac.append(events_frac_tmp)
+        events_time_frac = events_frac.append(events_time_frac_tmp)
         
     events = events.drop_duplicates()       
-    events_frac = events_frac.drop_duplicates()      
+    events_frac = events_frac.drop_duplicates() 
+    events_time_frac = events_time_frac.drop_duplicates()      
         
     #events.to_csv("train/events_"+fname+"train_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8') 
     #events_frac.to_csv("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
     
+    pickle.dump(events_time_frac,open("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
     pickle.dump(events_frac,open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
     pickle.dump(events,open("train/events_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
         
@@ -131,7 +136,7 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
     mcplt.plot_theta(events_frac, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
     
 
-    return events, events_frac
+    return events, events_frac, events_time_frac
 
 
 def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
@@ -319,6 +324,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
         #get the ace_mag_1m and ace_swepam_1m data for these events
         events = pd.DataFrame()             #observational event characteristics for all MCs
         events_frac = pd.DataFrame()        #predicted events characteristics split into fraction of an event
+        events_time_frac = pd.DataFrame()        #predicted events characteristics split into time increments through an event
         errpredict = []
         for i in range(0,len(date_list)):
                     
@@ -334,15 +340,16 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                 
                 try:
                            
-                    data, events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
+                    data, events_tmp, events_frac_tmp, events_time_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
                         dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
                         csv = csv, livedb = livedb, predict = predict,\
                         smooth_num = 100, dst_thresh = dst_thresh, plotting = plotting,\
                         plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_th4/')
+                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_time/')
                     
                     events = events.append(events_tmp)
                     events_frac = events_frac.append(events_frac_tmp)
+                    events_time_frac = events_time_frac.append(events_time_frac_tmp)
     
                     
                 except:
@@ -354,6 +361,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
         #drop duplicate events 
         events_uniq = events.drop_duplicates()       
         events_frac_uniq = events_frac.drop_duplicates()       
+        events_time_frac_uniq = events_time_frac.drop_duplicates()      
                 
         print("--------Error predict------------")
         print(errpredict)
@@ -361,7 +369,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
         #plot_obs_bz_tau(events_uniq, 'bzm_vs_tau_smooth100.pdf')
         #plot_predict_bz_tau_frac(events_frac, outname = 'bztau_predict.pdf')
         
-        return events_uniq, events_frac_uniq
+        return events_uniq, events_frac_uniq, events_time_frac_uniq
 
 
 
