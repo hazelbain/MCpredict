@@ -183,6 +183,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
     data['iend_bz'] = 0
     data['tau_predicted'] = 0
     data['tau_actual'] = 0
+    data['frac_est'] = 0
     data['bzm_predicted'] = 0
     data['bzm_actual'] = 0
     data['i_bzmax'] = 0
@@ -273,15 +274,14 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
        
     
     #create new dataframe to record event characteristics
-    events, events_frac = create_event_dataframe(data, dst_data, pdf, dst_thresh=dst_thresh, predict = predict)   
+    events, events_frac, events_time_frac = create_event_dataframe(data, dst_data, pdf, dst_thresh=dst_thresh, predict = predict)   
     
     #plot some stuff   
     if plotting == 1:
         evt_times = events[['start','end']].values
         mcpredict_plot(data, events_frac, dst_data, line=line, bars = evt_times, plt_outfile = plt_outfile, plt_outpath = plt_outpath)
-
     
-    return data, events, events_frac
+    return data, events, events_frac, events_time_frac
 
 
 
@@ -359,20 +359,21 @@ def create_event_dataframe(data, dst_data, pdf, dst_thresh = -80, t_frac = 5, pr
     events = dst_geo_tag(events, dst_data, dst_thresh = dst_thresh, dst_dur_thresh = 2.0)
 
     #split the event into fractions for bayesian stats
-    events_frac = create_event_frac_dataframe(data, events, evt_indices, t_frac = t_frac)
+    events_frac, events_time_frac = create_event_frac_dataframe(data, events, evt_indices, frac_type = 'time', t_frac = t_frac)
            
     if predict == 1:
         
         #predict geoeffectivenes
         events_frac = predict_geoeff(events_frac, pdf)
 
-    return events, events_frac
+    return events, events_frac, events_time_frac
     
 
-def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
+def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t_frac = 5):
     
-    #split the event into fractions for bayesian stats
-    events_frac = events.loc[np.repeat(events.index.values, t_frac+1)]
+    ###create a dataframe containing infor for every frac of an event
+    repeat = t_frac+1    
+    events_frac = events.loc[np.repeat(events.index.values, repeat)]
     events_frac.reset_index(inplace=True)
     
     #remame the column headers to keep track of things
@@ -381,6 +382,7 @@ def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
     frac = pd.DataFrame({'frac':np.tile(np.arange(t_frac+1)*(100/t_frac/100), len(events)),\
                             'frac_start':0.0,\
                             'frac_end':0.0,\
+                            'frac_est':0.0,\
                             'bzm_predicted':0.0,\
                             'tau_predicted':0.0,\
                             'bym_predicted':0.0,\
@@ -392,17 +394,9 @@ def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
     ##bzm at each fraction of an event    
     for i in range(len(evt_indices)):
         
-        #print("here")
-        
-        #determine the indices in data for each fraction of an event
         frac_ind = evt_indices[i,0] + (np.arange(t_frac+1)*(100/t_frac/100) * \
                     float(evt_indices[i,1]-evt_indices[i,0])).astype(int)
         dfrac = frac_ind[1]-frac_ind[0]
-        
-        
-        #print(data['bzm_predicted'].iloc[frac_ind].values)
-        #print(data['tau_predicted'].iloc[frac_ind].values)
-        #print(np.where(events_frac['evt_index'] == i))
         
         #start and end times of each fraction of an event
         events_frac['frac_start'].iloc[np.where(events_frac['evt_index'] == i)] = data['date'].iloc[frac_ind].values
@@ -410,6 +404,8 @@ def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
         if (frac_ind[-1]+dfrac) >= len(data['date']):           
             frac_ind_end[-1] = len(data['date'])-1
         events_frac['frac_end'].iloc[np.where(events_frac['evt_index'] == i)] = data['date'].iloc[frac_ind_end].values
+        
+        events_frac['frac_est'].iloc[np.where(events_frac['evt_index'] == i)] = data['frac_est'].iloc[frac_ind].values
 
         #predicted bzm, bym ,tau_y and tau_z
         events_frac['bzm_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bzm_predicted'].iloc[frac_ind].values
@@ -431,7 +427,69 @@ def create_event_frac_dataframe(data, events, evt_indices, t_frac = 5):
 #         events_frac['tau_predicted_y'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[frac_ind].values
 #==============================================================================
     
-    return events_frac
+
+
+    #create dataframe for every 60 mins through an event
+    repeat = np.ceil((evt_indices[:,1]-evt_indices[:,0])/60.).astype(int)
+    events_time_frac = events.loc[np.repeat(events.index.values, repeat)]
+    events_time_frac.reset_index(inplace=True)
+    
+    #remame the column headers to keep track of things
+    events_time_frac.rename(columns={'level_0':'evt_index', 'index':'data_index'}, inplace=True)
+    
+    time_frac = pd.DataFrame({'frac':0.0,\
+                            'frac_start':0.0,\
+                            'frac_end':0.0,\
+                            'frac_est':0.0,\
+                            'bzm_predicted':0.0,\
+                            'tau_predicted':0.0,\
+                            'bym_predicted':0.0,\
+                            'tau_predicted_y':0.0,\
+                            'i_bzmax':0}, index=[0])
+    
+    events_time_frac = pd.concat([events_time_frac, time_frac], axis = 1) 
+    
+    ##bzm at each fraction of an event    
+    for i in range(len(evt_indices)):
+        
+        time_frac_ind = evt_indices[i,0] + (np.arange((evt_indices[i,1]-evt_indices[i,0])/60.) * 60.)
+        dfrac = 60.
+
+        #start and end times of each fraction of an event
+        events_time_frac['frac_start'].iloc[np.where(events_time_frac['evt_index'] == i)] = data['date'].iloc[time_frac_ind].values
+        time_frac_ind_end = time_frac_ind + dfrac
+        if (time_frac_ind[-1]+dfrac) >= len(data['date']):           
+            time_frac_ind_end[-1] = len(data['date'])-1
+        events_time_frac['frac_end'].iloc[np.where(events_time_frac['evt_index'] == i)] = data['date'].iloc[time_frac_ind_end].values
+        
+        events_time_frac['frac_est'].iloc[np.where(events_time_frac['evt_index'] == i)] = data['frac_est'].iloc[time_frac_ind].values
+
+        #predicted bzm, bym ,tau_y and tau_z
+        events_time_frac['bzm_predicted'].iloc[np.where(events_time_frac['evt_index'] == i)] = data['bzm_predicted'].iloc[time_frac_ind].values
+        events_time_frac['tau_predicted'].iloc[np.where(events_time_frac['evt_index'] == i)] = data['tau_predicted'].iloc[time_frac_ind].values
+        events_time_frac['i_bzmax'].iloc[np.where(events_time_frac['evt_index'] == i)] = data['i_bzmax'].iloc[time_frac_ind].values
+        
+        events_time_frac['bym_predicted'].iloc[np.where(events_time_frac['evt_index'] == i)] = data['bym_predicted'].iloc[time_frac_ind].values
+        events_time_frac['tau_predicted_y'].iloc[np.where(events_time_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[time_frac_ind].values
+    
+#==============================================================================
+#     ##bym at each fraction of the Bz event    
+#     for i in range(len(evt_indices_by)):
+#         
+#         #determine the indices in data for each fraction of an event
+#         frac_ind = evt_indices[i,0] + (np.arange(t_frac+1)*(100/t_frac/100) * \
+#                     float(evt_indices[i,1]-evt_indices[i,0])).astype(int)
+#         
+#         events_frac['bym_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bym_predicted'].iloc[frac_ind].values
+#         events_frac['tau_predicted_y'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[frac_ind].values
+#==============================================================================
+    
+
+
+
+
+
+    return events_frac, events_time_frac
     
 def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 1, dst_thresh = -80, \
             plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots_2/',\
@@ -484,7 +542,7 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     #dst_data = dst.read_dst(str(st), str(et))
 
     #plot the ace data
-    f, (ax0, ax1, ax1b, ax1c, ax2, ax3, ax4, ax5, ax6, ax7) = plt.subplots(10, figsize=(11,13))
+    f, (ax0, ax1, ax1b, ax1c, ax2, ax3, ax3b, ax4, ax5, ax6, ax7) = plt.subplots(11, figsize=(11,13))
  
     plt.subplots_adjust(hspace = .1)       # no vertical space between subplots
     fontP = FontProperties()                #legend
@@ -538,8 +596,7 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
                 fit_profile = events_frac['bym_predicted'].iloc[i] * np.sin(np.pi*np.arange(0,1,1./(pred_dur)) )          
                 
                 ax0.plot(fit_times, fit_profile, color=fitcolor[events_frac['frac'].iloc[i]])
-    
-    
+        
     #----Bz
     ax1.plot(data['date'], data['bz'], label='Bz (nT)')
     ax1.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
@@ -650,6 +707,20 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     leg = ax3.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
     
+    #frac_est        
+    ax3b.plot(data['date'], data['frac_est'], label='frac_est')
+    ax3b.set_xticklabels(' ')
+    ax3b.xaxis.set_major_locator(daysLoc)
+    ax3b.xaxis.set_minor_locator(hoursLoc)
+    ax3b.set_xlim([st, et])
+    ax3b.set_ylim(0,1.5)
+    for l in line:
+        ax3b.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for b in range(len(bars)):
+        ax3b.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+    leg = ax3b.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+    leg.get_frame().set_alpha(0.5)
+    
                   
     #----density
 #==============================================================================
@@ -714,31 +785,33 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     leg.get_frame().set_alpha(0.5)
     
     #----P1    
-    ax6.plot(events_frac['frac_start'], events_frac['P1_scaled'], linestyle = ' ')
-    ax6.set_xticklabels(' ')
-    ax6.xaxis.set_major_locator(daysLoc)
-    ax6.xaxis.set_minor_locator(hoursLoc)
-    ax6.set_xlim([st, et])
-    for l in line:
-        ax6.axvline(x=l, linewidth=2, linestyle='--', color='black') 
-    for b in range(len(bars)):
-        ax6.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-    leg = ax6.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-    leg.get_frame().set_alpha(0.5)
-    ylim = ax6.get_ylim()
-    for i in range(len(events_frac)):
-        x0 = mdates.date2num(events_frac['frac_start'].iloc[i])
-        x1 = mdates.date2num(events_frac['frac_end'].iloc[i]) 
-        width = (x0-x1)
-        y1 = events_frac['P1_scaled'].iloc[i]/ylim[1]
-        if events_frac['P1_scaled'].iloc[i] > 0.2:
-            barcolor = 'red'
-        else:
-            barcolor = 'green'
-        rect = Rectangle((x0 - (width/2.0), 0), width, events_frac['P1_scaled'].iloc[i], color=barcolor)
-        ax6.add_patch(rect)
-        #df = (events_frac['frac_end'].iloc[i] - events_frac['frac_start'].iloc[i]) / 2.
-        #ax6.hlines(events_frac['P1_scaled'].iloc[i], events_frac['frac_start'].iloc[i]-df, events_frac['frac_end'].iloc[i]-df)
+#==============================================================================
+#     ax6.plot(events_frac['frac_start'], events_frac['P1_scaled'], linestyle = ' ')
+#     ax6.set_xticklabels(' ')
+#     ax6.xaxis.set_major_locator(daysLoc)
+#     ax6.xaxis.set_minor_locator(hoursLoc)
+#     ax6.set_xlim([st, et])
+#     for l in line:
+#         ax6.axvline(x=l, linewidth=2, linestyle='--', color='black') 
+#     for b in range(len(bars)):
+#         ax6.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax6.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#     ylim = ax6.get_ylim()
+#     for i in range(len(events_frac)):
+#         x0 = mdates.date2num(events_frac['frac_start'].iloc[i])
+#         x1 = mdates.date2num(events_frac['frac_end'].iloc[i]) 
+#         width = (x0-x1)
+#         y1 = events_frac['P1_scaled'].iloc[i]/ylim[1]
+#         if events_frac['P1_scaled'].iloc[i] > 0.2:
+#             barcolor = 'red'
+#         else:
+#             barcolor = 'green'
+#         rect = Rectangle((x0 - (width/2.0), 0), width, events_frac['P1_scaled'].iloc[i], color=barcolor)
+#         ax6.add_patch(rect)
+#         #df = (events_frac['frac_end'].iloc[i] - events_frac['frac_start'].iloc[i]) / 2.
+#         #ax6.hlines(events_frac['P1_scaled'].iloc[i], events_frac['frac_start'].iloc[i]-df, events_frac['frac_end'].iloc[i]-df)
+#==============================================================================
         
     #----dst
     ax7.plot(dst_data[st:et].index, dst_data[st:et]['dst'], label='Dst')
@@ -1057,7 +1130,7 @@ def predict_duration(data, istart, iend, component = 'z'):
 
         predicted_duration = abs(dth/rate_of_rotation)/60.           #in hours
         
-        #frac_est = dduration/(predicted_duration*60.)
+        frac_est = dduration/(predicted_duration*60.)
         
 #==============================================================================
 #         if ((istart >= 4256) & (iend  <= 4748)):
@@ -1089,6 +1162,7 @@ def predict_duration(data, istart, iend, component = 'z'):
             data.loc[i-step:i, 'iend_bz'] = iend   
             data.loc[i-step:i, 'tau_predicted'] = predicted_duration    #[0][0]
             data.loc[i-step:i, 'tau_actual'] = (iend-istart)/60.
+            data.loc[i-step:i, 'frac_est'] = frac_est
             data.loc[i-step:i, 'bzm_predicted'] = predicted_bmax
     
             #index of max bz up to the current time - used for fitting bz profile
