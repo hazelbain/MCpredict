@@ -24,6 +24,7 @@ import MC_predict_pdfs as mcp
 import MC_predict_plots as mcplt
 from MCpredict import predict_geoeff, dst_geo_tag
 
+import matplotlib.pyplot as plt
 
 def train_and_validate(fname='', train_fname='', valid_fname='', \
                        train=1, trainfit=0, trainpdf=1, \
@@ -39,11 +40,13 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
         if trainfit == 0:
             print("Loading the training data")
             ## TODO events_time_frac
-            events_frac = load_training_events(train_fname, ew[0], nw[0], \
+            events_frac, events_time_frac = load_training_events(train_fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)
         else:
             print("Fitting the training data")
             events, events_frac, events_time_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0], dst_thresh=dst_thresh)
+            
+            return events, events_frac, events_time_frac
             
         events_frac.tau_predicted.iloc[np.where((events_frac.frac == 0.0) & (events_frac.tau_predicted == np.inf))] = 0.0
         events_frac.drop_duplicates(('start','frac'), inplace = True)
@@ -105,7 +108,7 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
     t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003']
     
     #t1 = ['1-jan-2000']
-    #t2 = ['31-mar-2000']
+    #t2 = ['14-feb-2000']
     
     events = pd.DataFrame()             #observational event characteristics for all MCs
     events_frac = pd.DataFrame()        #predicted events characteristics split into fraction of an event
@@ -115,9 +118,15 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
         events_tmp, events_frac_tmp, events_time_frac_tmp = find_events(t1[i], t2[i], plotting=1, \
                     dst_thresh = dst_thresh, csv=0, livedb = 1)
         
+        #increment the evt_index by the number of events already held in events_frac, events_time_frac
+        if i > 0:
+            events_frac_tmp.evt_index = events_frac_tmp.evt_index + (events_frac.evt_index.iloc[-1] + 1)
+            events_time_frac_tmp.evt_index = events_time_frac_tmp.evt_index + (events_time_frac.evt_index.iloc[-1] + 1)
+ 
         events = events.append(events_tmp)
         events_frac = events_frac.append(events_frac_tmp)
-        events_time_frac = events_frac.append(events_time_frac_tmp)
+        events_time_frac = events_time_frac.append(events_time_frac_tmp)
+     
         
     events = events.drop_duplicates()       
     events_frac = events_frac.drop_duplicates() 
@@ -143,6 +152,7 @@ def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
 
     #load the fitted events    
     events_frac = pickle.load(open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh_old))+".p","rb")) 
+    events_time_frac = pickle.load(open("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh_old))+".p","rb")) 
 
 
     if dst_thresh != dst_thresh_old:
@@ -152,6 +162,7 @@ def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
         
         #reset the events_frac index
         events_frac = events_frac.reset_index()
+        events_time_frac = events_time_frac.reset_index()
         
         #get min dst and geoeffective flags and replace in value in dataframe
         geoeff, dstmin, dstdur = dst_geo_tag(events_frac, dst_data, dst_thresh = dst_thresh, \
@@ -162,12 +173,22 @@ def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
         events_frac.dst = dstmin
         events_frac.dstdur = dstdur
         
+        #get min dst and geoeffective flags and replace in value in time dataframe
+        geoeff_time, dstmin_time, dstdur_time = dst_geo_tag(events_time_frac, dst_data, dst_thresh = dst_thresh, \
+                          dst_dur_thresh = 2, geoeff_only = 1)
+    
+        #replace geoeff column
+        events_time_frac.geoeff = geoeff_time.geoeff
+        events_time_frac.dst = dstmin_time
+        events_time_frac.dstdur = dstdur_time
+        
         #save the new dataframes
         #events_frac.to_csv("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
         pickle.dump(events_frac,open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
+        pickle.dump(events_time_frac,open("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
             
     
-    return events_frac
+    return events_frac, events_time_frac
 
 def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     
@@ -338,8 +359,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                 stf = datetime.strftime(st, "%Y-%m-%d")
                 etf = datetime.strftime(et, "%Y-%m-%d")
                 
-                try:
-                           
+                try:      
                     data, events_tmp, events_frac_tmp, events_time_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
                         dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
                         csv = csv, livedb = livedb, predict = predict,\
@@ -347,22 +367,29 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                         plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
                         plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_time/')
                     
+                    #increment the evt_index by the number of events already held in events_frac, events_time_frac    
+                    if len(events) > 0:
+                        events_frac_tmp.evt_index = events_frac_tmp.evt_index + (events_frac.evt_index.iloc[-1] + 1)
+                        events_time_frac_tmp.evt_index = events_time_frac_tmp.evt_index + (events_time_frac.evt_index.iloc[-1] + 1)
+     
                     events = events.append(events_tmp)
                     events_frac = events_frac.append(events_frac_tmp)
                     events_time_frac = events_time_frac.append(events_time_frac_tmp)
-    
-                    
+
                 except:
                     print("*** Error running Chen MC Prediction ***")
                     errpredict.append(i)
-    
+
         events = events.reset_index() 
+        events_frac = events_frac.reset_index() 
+        events_time_frac = events_time_frac.reset_index() 
     
         #drop duplicate events 
         events_uniq = events.drop_duplicates()       
-        events_frac_uniq = events_frac.drop_duplicates()       
-        events_time_frac_uniq = events_time_frac.drop_duplicates()      
-                
+        events_frac_uniq = events_frac.drop_duplicates(['evt_index','start','frac_est','bzm_predicted','tau_predicted'])       
+        events_time_frac_uniq = events_time_frac.drop_duplicates(['evt_index','start','frac_est','bzm_predicted','tau_predicted'])      
+
+        
         print("--------Error predict------------")
         print(errpredict)
     
