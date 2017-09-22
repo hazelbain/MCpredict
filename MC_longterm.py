@@ -30,6 +30,7 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
                        train=1, trainfit=0, trainpdf=1, \
                        validfit=0, predict=1, report=1, \
                        ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], nbins=[50j,100j], \
+                       fracs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],\
                        dst_thresh = -80, dst_thresh_old = -80, P1 = 0.2):
             
     ## TODO: add in fname for plot directories, missed and false
@@ -56,17 +57,17 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
             print("Creating the PDFs")
             for e in ew:
                 for n in nw:
-                    pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, nbins=nbins, \
+                    pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, nbins=nbins, fracs=fracs, \
                             fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)))
                 
         #step 3: fit the validation events 
         if validfit == 0:
             print("Loading the validation data")
-            events_frac_predict = load_validation_events(valid_fname, ew[0], nw[0], \
+            events_frac_predict, events_time_frac_predict = load_validation_events(valid_fname, ew[0], nw[0], \
                     dst_thresh=dst_thresh, dst_thresh_old=dst_thresh_old)   
         else:
             print("Fitting the validation data")
-            events_predict, events_frac_predict = fit_validation_events(fname=fname,\
+            events_predict, events_frac_predict, events_time_frac_predict = fit_validation_events(fname=fname,\
                     ew=ew[0], nw=nw[0], dst_thresh = dst_thresh)
 
 
@@ -119,18 +120,22 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
                     dst_thresh = dst_thresh, csv=0, livedb = 1)
         
         #increment the evt_index by the number of events already held in events_frac, events_time_frac
-        if i > 0:
+        if len(events) > 0:
             events_frac_tmp.evt_index = events_frac_tmp.evt_index + (events_frac.evt_index.iloc[-1] + 1)
-            events_time_frac_tmp.evt_index = events_time_frac_tmp.evt_index + (events_time_frac.evt_index.iloc[-1] + 1)
- 
+            events_time_frac_tmp.evt_index = events_time_frac_tmp.evt_index + (events_time_frac.evt_index.iloc[-1] + 1)        
+        
         events = events.append(events_tmp)
         events_frac = events_frac.append(events_frac_tmp)
         events_time_frac = events_time_frac.append(events_time_frac_tmp)
      
-        
-    events = events.drop_duplicates()       
-    events_frac = events_frac.drop_duplicates() 
-    events_time_frac = events_time_frac.drop_duplicates()      
+    events = events.reset_index(drop=True) 
+    events_frac = events_frac.reset_index(drop=True) 
+    events_time_frac = events_time_frac.reset_index(drop=True) 
+    
+    #drop duplicate events 
+    events_uniq = events.drop_duplicates()       
+    events_frac_uniq = events_frac.drop_duplicates(['evt_index','start','frac_est','bzm_predicted','tau_predicted'])       
+    events_time_frac_uniq = events_time_frac.drop_duplicates(['evt_index','start','frac_est','bzm_predicted','tau_predicted'])    
         
     #events.to_csv("train/events_"+fname+"train_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8') 
     #events_frac.to_csv("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
@@ -145,7 +150,7 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
     mcplt.plot_theta(events_frac, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
     
 
-    return events, events_frac, events_time_frac
+    return events_uniq, events_frac_uniq, events_time_frac_uniq
 
 
 def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
