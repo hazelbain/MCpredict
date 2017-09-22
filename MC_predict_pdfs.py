@@ -52,7 +52,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
                 ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
-                ew = 2, nw = 0.5, plotting=[0,0,0,0,0], fname='' ):
+                fracs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], ew = 2, nw = 0.5, plotting=[0,0,0,0,0], fname='' ):
 
     """
     Create the PDFs for the
@@ -118,23 +118,23 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     Pn = P_n(events_frac)
     
     #Add a perturbation to Bzmp to break symmtry for KDE to work
-    b_indices = np.mgrid[ranges[0]:ranges[1]:nbins[0]]
-    delta_b = b_indices[1] - b_indices[0]
-    np.random.seed(2)
-    events_frac.bzm_predicted = events_frac.bzm_predicted + np.random.uniform(-delta_b, delta_b, len(events_frac))
+    #b_indices = np.mgrid[ranges[0]:ranges[1]:nbins[0]]
+    #delta_b = b_indices[1] - b_indices[0]
+    #np.random.seed(2)
+    #events_frac.bzm_predicted = events_frac.bzm_predicted + np.random.uniform(-delta_b, delta_b, len(events_frac))
     
     
     Pbzm_tau_e, norm_bzm_tau_e = P_bzm_tau_e(events_frac, ranges=ranges,\
         nbins=nbins, kernel_width = ew, plotfig = plotting[0])
     
     Pbzmp_taup_e, norm_bzmp_taup_e = P_bzmp_taup_e(events_frac, ranges=ranges, \
-        nbins=nbins, kernel_width = ew, plotfig = plotting[1])
+        nbins=nbins, fracs=fracs, kernel_width = ew, plotfig = plotting[1])
     
     Pbzmp_taup_n, norm_bzmp_taup_n = P_bzmp_taup_n(events_frac, ranges=ranges,\
-        nbins=nbins, kernel_width = nw, plotfig=plotting[2])
+        nbins=nbins, fracs=fracs, kernel_width = nw, plotfig=plotting[2])
     
     Pbzmp_taup_bzm_tau_e, norm_bzmp_taup_bzm_tau_e, P0, tmpint, indices = P_bzmp_taup_bzm_tau_e(events_frac, \
-        ranges=ranges, nbins=nbins, kernel_width = ew, plotfig=plotting[3])
+        ranges=ranges, fracs=fracs, nbins=nbins, kernel_width = ew, plotfig=plotting[3])
     
     Pbzm_tau_e_bzmp_taup, norm_bzm_tau_e_bzmp_taup, P1, P1_map, axis_vals = P_bzm_tau_e_bzmp_taup(Pe, \
                                                     Pn,\
@@ -143,27 +143,29 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
                                                     Pbzmp_taup_n,\
                                                     Pbzmp_taup_bzm_tau_e, \
                                                     ranges = ranges, nbins = nbins,\
+                                                    fracs=fracs, \
                                                     plotfig = plotting[4])
     
     
     ##plot all pdfs in output figure       
-    for i in np.arange(1,6):
     
-        gbzm = events_frac.bzm.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff == 1.0) & (events_frac.bzm < 0.0))[0]]
-        gtau = events_frac.tau.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff == 1.0) & (events_frac.bzm < 0.0))[0]]
+    for i in range(1, len(fracs)):
+    
+        gbzm = events_frac.query('geoeff == 1.0 and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm
+        gtau = events_frac.query('geoeff == 1.0 and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau
         
-        gbzmn = events_frac.bzm.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff != 1.0) & (events_frac.bzm < 0.0))[0]]
-        gtaun = events_frac.tau.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff != 1.0) & (events_frac.bzm < 0.0))[0]]
+        gbzmn = events_frac.query('geoeff == 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm
+        gtaun = events_frac.query('geoeff == 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau
         
-        gbzmp = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff == 1.0))[0]]
-        gtaup = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff == 1.0))[0]]
-        gbzmp.iloc[np.where(np.isnan(gbzmp))[0]] = 0.0
-        gtaup.iloc[np.where(np.isnan(gtaup))[0]] = 0.0
-            
-        gbzmp_n = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff != 1.0))[0]]
-        gtaup_n = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i/5.) & (events_frac.geoeff != 1.0))[0]]
-        gbzmp_n.iloc[np.where(np.isnan(gbzmp_n))[0]] = 0.0
-        gtaup_n.iloc[np.where(np.isnan(gtaup_n))[0]] = 0.0
+        gbzmp = events_frac.query('geoeff == 1.0 and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
+        gtaup = events_frac.query('geoeff == 1.0 and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted
+        gbzmp.dropna(inplace=True)
+        gtaup.dropna(inplace=True)
+
+        gbzmp_n = events_frac.query('geoeff == 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
+        gtaup_n = events_frac.query('geoeff == 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted 
+        gbzmp_n.dropna(inplace=True)
+        gtaup_n.dropna(inplace=True)
 
 
         fig, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2,figsize = (8.5,11))
@@ -177,29 +179,31 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
         ax1.set_xlabel('Bzm')
         ax1.set_ylabel('Tau')
         ax1.set_title('P_bzm_tau_e, bandwidth = '+str(ew), fontsize = 'small')
-        #fig.colorbar(c1, ax = ax1, fraction=0.025)
+        #cbaxes1 = ax1.add_axes([0.8, 0.1, 0.03, 0.8]) 
+        fig.colorbar(c1, ax = ax1, fraction=0.025, format='%.2E')      #, cax = cbaxes1)
         leg1 = ax1.legend(loc='upper right', prop = fontP, fancybox=True)
         leg1.get_frame().set_alpha(0.5)
         
-        c2 = ax2.imshow(np.rot90(Pbzmp_taup_e[:,:,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        c2 = ax2.imshow(np.rot90(Pbzmp_taup_e[:,:,i-1]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         ax2.plot(gbzmp, gtaup, 'k.', markersize=4, c='r', label = 'bzmp, taup, g = 1')
         ax2.set_xlim([ranges[0], ranges[1]])
         ax2.set_ylim([0, ranges[3]])
         ax2.set_xlabel('Bzm_p')
         ax2.set_ylabel('Tau_p')
         ax2.set_title('P_bzmp_taup_e, bandwidth = '+str(ew), fontsize = 'small')
-        #fig.colorbar(c2, ax = ax2, fraction=0.025)
+        fig.colorbar(c2, ax = ax2, fraction=0.025, format='%.2E')
         leg2 = ax2.legend(loc='upper right', prop = fontP, fancybox=True)
         leg2.get_frame().set_alpha(0.5)
         
-        c3 = ax3.imshow(np.rot90(Pbzmp_taup_n[:,:,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        c3 = ax3.imshow(np.rot90(Pbzmp_taup_n[:,:,i-1]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         ax3.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b', label = 'bzmp, taup, g = 0')
         ax3.set_xlim([ranges[0], ranges[1]])
         ax3.set_ylim([0, ranges[3]])
         ax3.set_xlabel('Bzm_p')
         ax3.set_ylabel('Tau_p')
         ax3.set_title('P_bzmp_taup_n, bandwidth = '+str(nw), fontsize = 'small')
-        #fig.colorbar(c3, ax = ax3, fraction=0.025)
+        #cbaxes3 = ax1.add_axes([0.8, 0.1, 0.03, 0.8]) 
+        fig.colorbar(c3, ax = ax5, fraction=0.025, format='%.2E')      #, cax = cbaxes3)
         leg3 = ax3.legend(loc='upper right', prop = fontP, fancybox=True)
         leg3.get_frame().set_alpha(0.5)
     
@@ -209,7 +213,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
         indt = np.min(np.where(indices[3,:] > predicted_duration))
         indb = np.max(np.where(indices[2,:] < predicted_bzmax))
     
-        c4 = ax4.imshow(np.rot90(Pbzmp_taup_bzm_tau_e[:,:,indb,indt,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        c4 = ax4.imshow(np.rot90(Pbzmp_taup_bzm_tau_e[:,:,indb,indt,i-1]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         ax4.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b', label = 'bzmp, taup, g = 0')
         ax4.plot(gbzmp, gtaup, 'k.', markersize=4, c='r', label = 'bzmp, taup, g = 1')
         ax4.set_xlim([ranges[0], ranges[1]])
@@ -217,11 +221,11 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
         ax4.set_xlabel('Bzm_p')
         ax4.set_ylabel('Tau_p')
         ax4.set_title('P_bzm_tau_bzmp_taup_e, bandwidth = '+str(ew), fontsize = 'small')
-        #fig.colorbar(c4, ax = ax4, fraction=0.025)
+        fig.colorbar(c4, ax = ax4, fraction=0.025, format='%.2E')
         leg4 = ax4.legend(loc='upper right', prop = fontP, fancybox=True)
         leg4.get_frame().set_alpha(0.5)
         
-        c5 = ax5.imshow(np.rot90(Pbzm_tau_e_bzmp_taup[:,:,indb,indt,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        c5 = ax5.imshow(np.rot90(Pbzm_tau_e_bzmp_taup[:,:,indb,indt,i-1]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         ax5.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 1')
         ax5.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
         ax5.set_xlim([ranges[0], ranges[1]])
@@ -229,11 +233,12 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
         ax5.set_xlabel('Bzm_p')
         ax5.set_ylabel('Tau_p')
         ax5.set_title('P_bzm_tau_e_bzmp_taup, bandwidth = '+str(ew), fontsize = 'small')
-        #fig.colorbar(c5, ax = ax5, fraction=0.025)
+        #cbaxes5 = ax5.add_axes([0.8, 0.1, 0.03, 0.8]) 
+        #fig.colorbar(c5, ax = ax5, fraction=0.025, format='%2.2f')      #, cax = cbaxes5)
         leg5 = ax5.legend(loc='upper right', prop = fontP, fancybox=True)
         leg5.get_frame().set_alpha(0.5)
     
-        c6 = ax6.imshow(np.rot90(P1_map[:,:,i]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        c6 = ax6.imshow(np.rot90(P1_map[:,:,i-1]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         ax6.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 0')
         ax6.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
         ax6.set_xlim([ranges[0], ranges[1]])
@@ -246,7 +251,7 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
         leg6.get_frame().set_alpha(0.5)
     
     
-        fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/PDFs/plots/allpdfs_'+fname+'_f'+str(i/5.)+'.pdf')
+        fig.savefig('C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/PDFs/plots/allpdfs_'+fname+'_f'+str(fracs[i])+'.pdf')
         plt.close()
 
     #create a dictionary to return PDFs etc
@@ -282,6 +287,13 @@ def create_pdfs(events_frac, kernel_alg = 'scipy_stats', \
     
     return P_dict    
 
+
+def load_pdfs(fname=''):
+    
+    pp = pickle.load(open("PDFs/Pdict_"+fname+".p","rb"))
+    
+    return pp['P_e'], pp['P_n'], pp['P_bzm_tau_e'], pp['P_bzmp_taup_e'], pp['P_bzmp_taup_n'], pp['P_bzmp_taup_bzm_tau_e'], pp['P_bzm_tau_e_bzmp_taup']
+
     
 def P_e(events_frac):  
     
@@ -311,13 +323,13 @@ def P_e(events_frac):
     """
     
     #----P(e) - probability of a geoefective event 
-    #n_events = len(events_frac.iloc[np.where(events_frac.frac == 1.0)])
-    #n_geoeff_events = len(events_frac.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff == 1.0))[0]])
+    n_events = len(events_frac.drop_duplicates('evt_index'))
+    n_geoeff_events = len(events_frac.drop_duplicates('evt_index').query('geoeff == 1.0'))
     
     #values from Chen paper
-    n_nongeoeff_events = 8600.
-    n_geoeff_events = 56.
-    n_events = n_nongeoeff_events + n_geoeff_events
+    #n_nongeoeff_events = 8600.
+    #n_geoeff_events = 56.
+    #n_events = n_nongeoeff_events + n_geoeff_events
     
     P_e = n_geoeff_events / n_events
     
@@ -354,13 +366,13 @@ def P_n(events_frac):
     """
     
     #----P(n) probability of nongeoeffective events
-    #n_events = len(events_frac.iloc[np.where(events_frac.frac == 1.0)])
-    #n_nongeoeff_events = len(events_frac.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff != 1.0))[0]])
+    n_events = len(events_frac.drop_duplicates('evt_index'))
+    n_nongeoeff_events = len(events_frac.drop_duplicates('evt_index').query('geoeff == 0.0'))
     
     #values from Chen paper
-    n_nongeoeff_events = 8600.
-    n_geoeff_events = 56.
-    n_events = n_nongeoeff_events + n_geoeff_events
+    #n_nongeoeff_events = 8600.
+    #n_geoeff_events = 56.
+    #n_events = n_nongeoeff_events + n_geoeff_events
     
     P_n = n_nongeoeff_events / n_events
 
@@ -439,11 +451,12 @@ def P_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     ew = kernel_width
     
     #extract raw data points from dataframe of "actual" bzm and tau for geoeffective events
-    #note bzm and tau do not change as a function of fraction of the events, so we use 
-    #frac == 1.0, but any other fratcion could have been used
-    gbzm = events_frac.bzm.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff == 1.0) & (events_frac.bzm < 0.0))[0]]
-    gtau = events_frac.tau.iloc[np.where((events_frac.frac == 1.0) & (events_frac.geoeff == 1.0) & (events_frac.bzm < 0.0))[0]]
-
+    gbzm = events_frac.drop_duplicates('evt_index').query('geoeff == 1.0 and bzm < 0.0').bzm
+    gtau = events_frac.drop_duplicates('evt_index').query('geoeff == 1.0 and bzm < 0.0 ').tau
+    
+    #print("max bzm: "+str(gbzm.max())+", tau: "+ str(gtau.max()))
+    
+    
     #to handle boundary conditions and limit the density estimate to positve 
     #values of tau: reflect the data points along the tau axis, perform the 
     #density estimate and then set negative values of tau to 0 and double the 
@@ -476,9 +489,6 @@ def P_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     P_bzm_tau_e = Ptmp_bzm_tau_e[:,dt0::]*2
 
     #check the normalization, should normalize to 1
-    b = X_bzm[:,0]
-    t = Y_tau[dt0::]
-    
     norm_bzm_tau_e = integrate.simps(integrate.simps(P_bzm_tau_e,Y_tau[0,dt0::]), X_bzm[:,0])
     print('\n\n Normalization for P_bzm_tau_e: ' + str(norm_bzm_tau_e) + '\n\n')
 
@@ -498,13 +508,18 @@ def P_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
         fig.colorbar(c)
         ax.legend(loc='upper right', prop = fontP, fancybox=True)
 
+    P_bzm_tau_e_rescale = P_bzm_tau_e/norm_bzm_tau_e
+    norm_bzm_tau_e_rescale = integrate.simps(integrate.simps(P_bzm_tau_e_rescale,Y_tau[0,dt0::]), X_bzm[:,0])
 
-    return P_bzm_tau_e, norm_bzm_tau_e
+    print("here00")
+    print(norm_bzm_tau_e_rescale)
+
+    return P_bzm_tau_e_rescale, norm_bzm_tau_e_rescale
 
 
 def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
                 ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
-                kernel_width = 2, plotfig = 0):  
+                fracs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], kernel_width = 2, plotfig = 0):  
     
     """
     Determine the PDF P(Bzm', tau'|e ; f), the probability of geoeffective event 
@@ -550,6 +565,8 @@ def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
         defines the axis ranges for Bzm and tau [bmin, bmax, tmin, tmax]
     nbins = 2 elements array 
         defines the number of bins along bzm and tau [nbins_Bzm, nbins_tau]
+    fracs = list
+        fractions to split the events into for calculating evolution dependent pdfs
     kernel_width = float
         defines the kernel smoothing width
     plotfit = int
@@ -574,17 +591,32 @@ def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
     #kernel smoothing width
     ew = kernel_width
     
-    #P_bzmp_taup_e is a function of the fraction of time f throughout an event
-    #currently the fit to the data considers every 5th of an event
-    for i in np.arange(6)*0.2:
+    #set grid containing x,y positions and use to get array size
+    X_bzmp, Y_taup = np.mgrid[bmin:bmax:db, tmin:tmax:dt]
+    db2 = int(len(X_bzmp[:,0]))
+    dt2 = int(len(Y_taup[0,:]))
     
-        #extract raw data points from dataframe of estimates bzm' and tau' for 
-        #fraction f throughout geoeffective events
-        gbzmp = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
-        gtaup = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
+    #P_bzmp_taup_e is a function of the fraction of time f throughout an event 
+    nfracs = len(fracs)-1
+    Ptmp_bzmp_taup_e = np.zeros((db2,dt2,nfracs))
+    for i in range(1, len(fracs)):
         
-        gbzmp.iloc[np.where(np.isnan(gbzmp))[0]] = 0.0
-        gtaup.iloc[np.where(np.isnan(gtaup))[0]] = 0.0
+        #extract raw data points from dataframe of estimates bzm' and tau' for 
+        #fraction f throughout geoeffective events 
+        
+        gbzmp = events_frac.query('geoeff == 1.0 and bzm < 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
+        gtaup = events_frac.query('geoeff == 1.0 and bzm < 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted
+        
+        #print("max bzmp: "+str(gbzmp.max())+", taup: "+ str(gtaup.max()))
+        
+        gbzmp.dropna(inplace=True)
+        gtaup.dropna(inplace=True)
+        
+        if gtaup.max() == np.inf:
+            inf_idx = gtaup[gtaup == np.inf].index.values[0]
+            gtaup.drop([inf_idx], inplace = True)
+            gbzmp.drop([inf_idx], inplace = True)
+        
         
         #to handle boundary conditions and limit the density estimate to positve 
         #values of tau': reflect the data points along the tau' axis, perform the 
@@ -593,12 +625,10 @@ def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
         gbzmp_r = np.concatenate([gbzmp, gbzmp])
         gtaup_r = np.concatenate([gtaup, -gtaup])
     
-        #grid containing x, y positions 
-        X_bzmp, Y_taup = np.mgrid[bmin:bmax:db, tmin:tmax:dt]
+        #make sure the resulting PDF tau axis will start at 0 hours. 
         dt0 = int(len(Y_taup[1])/2.)
-        Y_taup = Y_taup-((tmax-tmin)/len(Y_taup[1])/2.)        #to make sure the resulting PDF tau 
-                                                    #axis will start at 0. 
-        
+        Y_taup = Y_taup-((tmax-tmin)/len(Y_taup[1])/2.)        
+                                                            
         #option to use scikit learn or scipy stats kernel algorithms
         if kernel_alg == 'sklearn':
         
@@ -606,29 +636,22 @@ def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
             values = np.vstack([gbzmp_r, gtaup_r]).T             
             kernel_bzmp_taup_e = KernelDensity(kernel='gaussian', bandwidth=ew).fit(values)
             
-            if i < 0.1:
-                Ptmp_bzmp_taup_e = np.exp(np.reshape(kernel_bzmp_taup_e.score_samples(positions).T, X_bzmp.shape))
-            else: 
-                tmp = np.exp(np.reshape(kernel_bzmp_taup_e.score_samples(positions).T, X_bzmp.shape))
-                Ptmp_bzmp_taup_e = np.dstack([Ptmp_bzmp_taup_e, tmp])
-            
+            Ptmp_bzmp_taup_e[:,:,i-1] = np.exp(np.reshape(kernel_bzmp_taup_e.score_samples(positions).T, X_bzmp.shape))
+
         elif kernel_alg == 'scipy_stats'  : 
             
             positions = np.vstack([X_bzmp.ravel(), Y_taup.ravel()])
             values = np.vstack([gbzmp_r, gtaup_r])
             kernel_bzmp_taup_e = stats.gaussian_kde(values, bw_method=ew)
-        
-            if i < 0.1:
-                Ptmp_bzmp_taup_e = np.reshape(kernel_bzmp_taup_e(positions).T, X_bzmp.shape)
-            else: 
-                tmp = np.reshape(kernel_bzmp_taup_e(positions).T, X_bzmp.shape)
-                Ptmp_bzmp_taup_e = np.dstack([Ptmp_bzmp_taup_e, tmp])
+
+            Ptmp_bzmp_taup_e[:,:,i-1] = np.reshape(kernel_bzmp_taup_e(positions).T, X_bzmp.shape)
+
        
     #set the density estimate to 0 for negative tau, and x2 for positve tau 
     P_bzmp_taup_e = Ptmp_bzmp_taup_e[:,dt0::,:]*2
 
-    #check the normalization
-    norm_bzmp_taup_e = integrate.simps(integrate.simps(P_bzmp_taup_e[:,:,5],Y_taup[0,dt0::]), X_bzmp[:,0])
+    #check the normalization for the final fraction (usually at frac = 1.0)
+    norm_bzmp_taup_e = integrate.simps(integrate.simps(P_bzmp_taup_e[:,:,-1],Y_taup[0,dt0::]), X_bzmp[:,0])
     print('\n\n Normalization for P_bzmp_taup_e: ' + str(norm_bzmp_taup_e) + '\n\n')
 
     if plotfig == 1:    
@@ -637,7 +660,7 @@ def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
         #fontP.set_size('medium')
                
         fig, ax = plt.subplots()
-        c = ax.imshow(np.rot90(P_bzmp_taup_e[:,:,5]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        c = ax.imshow(np.rot90(P_bzmp_taup_e[:,:,-1]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         ax.plot(gbzmp, gtaup, 'k.', markersize=4, label = 'bzm_p, tau_p, geoeff = 1')
         ax.set_xlim([bmin, bmax])
         ax.set_ylim([taumin, tmax])
@@ -647,13 +670,24 @@ def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
         fig.colorbar(c)
         ax.legend(loc='upper right', prop = fontP, fancybox=True)
 
-    return P_bzmp_taup_e, norm_bzmp_taup_e
+    P_bzmp_taup_e_rescale = np.zeros((db2,db2,nfracs))
+    for i in range(0, len(fracs)-1):
+        P_bzmp_taup_e_rescale[:,:,i] = P_bzmp_taup_e[:,:,i]/norm_bzmp_taup_e
+    norm_bzmp_taup_e_rescale = integrate.simps(integrate.simps(P_bzmp_taup_e_rescale[:,:,-1],Y_taup[0,dt0::]), X_bzmp[:,0])
+
+    print("here00")
+    print(norm_bzmp_taup_e_rescale)
+
+
+    #return P_bzmp_taup_e, norm_bzmp_taup_e
+
+    return P_bzmp_taup_e_rescale, norm_bzmp_taup_e_rescale
 
 
 
 def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
                 ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
-                kernel_width = 0.5, plotfig = 0):  
+                fracs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], kernel_width = 0.5, plotfig = 0):  
     
     """
     Determine the PDF P(Bzm', tau'|n ; f), the probability of nongeoeffective event 
@@ -699,6 +733,8 @@ def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
         defines the axis ranges for Bzm and tau [bmin, bmax, tmin, tmax]
     nbins = 2 elements array 
         defines the number of bins along bzm and tau [nbins_Bzm, nbins_tau]
+    fracs = list
+        fractions to split the events into for calculating evolution dependent pdfs
     kernel_width = float
         defines the kernel smoothing width    
     plotfit = int
@@ -725,24 +761,37 @@ def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
     #kernel smoothing width
     nw = kernel_width
     
+    #set grid containing x,y positions and use to get array size
+    X_bzmp_n, Y_taup_n = np.mgrid[bmin:bmax:db, tmin:tmax:dt]
+    db2 = int(len(X_bzmp_n[:,0]))
+    dt2 = int(len(Y_taup_n[0,:]))
     
     #P_bzmp_taup_n is a function of the fraction of time f throughout an event
-    #currently the fit to the data considers every 5th of an event
-    for i in np.arange(6)*0.2:
+    nfracs = len(fracs)-1
+    Ptmp_bzmp_taup_n = np.zeros((db2,dt2,nfracs))
+    for i in range(1, len(fracs)):
 
         #extract raw data points from dataframe of estimates bzm' and tau' for 
         #fraction f throughout nongeoeffective events
         #note geoeff label can have values between 0-3. Anything that is not 1 is
         #considered nongeoeffective
+
+        #gbzm_n = events_frac.query('geoeff == 0.0 and frac >= ' + str(fracs[i-1]) + ' and frac < ' + str(fracs[i])).bzm
+        #gtau_n = events_frac.query('geoeff == 0.0 and frac >= ' + str(fracs[i-1]) + ' and frac < ' + str(fracs[i])).tau
         
-        #gbzm_n = events_frac.bzm.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff != 1.0))[0]]
-        #gtau_n = events_frac.tau.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff != 1.0))[0]]
+        gbzmp_n = events_frac.query('geoeff == 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
+        gtaup_n = events_frac.query('geoeff == 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted
         
-        gbzmp_n = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff != 1.0))[0]]
-        gtaup_n = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff != 1.0))[0]]
+        #print("max bzmp_n: "+str(gbzmp_n.max())+", taup_n: "+ str(gtaup_n.max()))
         
-        gbzmp_n.iloc[np.where(np.isnan(gbzmp_n))[0]] = 0.0
-        gtaup_n.iloc[np.where(np.isnan(gtaup_n))[0]] = 0.0
+        gbzmp_n.dropna(inplace=True)
+        gtaup_n.dropna(inplace=True)
+
+        if gtaup_n.max() == np.inf:
+
+            inf_idx = gtaup_n[gtaup_n == np.inf].index.values
+            gtaup_n.drop(inf_idx, inplace = True)
+            gbzmp_n.drop(inf_idx, inplace = True)
  
         #to handle boundary conditions and limit the density estimate to positve 
         #values of tau': reflect the data points along the tau' axis, perform the 
@@ -751,10 +800,9 @@ def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
         gbzmp_nr = np.concatenate([gbzmp_n, gbzmp_n])
         gtaup_nr = np.concatenate([gtaup_n, -gtaup_n])
     
-        X_bzmp_n, Y_taup_n = np.mgrid[bmin:bmax:db, tmin:tmax:dt]
+        #make sure the resulting PDF tau axis will start at 0 hours. 
         dt0 = int(len(Y_taup_n[1])/2.)
-        Y_taup_n = Y_taup_n-((tmax-tmin)/len(Y_taup_n[1])/2.)    #to make sure the resulting PDF tau 
-                                                    #axis will start at 0. 
+        Y_taup_n = Y_taup_n-((tmax-tmin)/len(Y_taup_n[1])/2.)    
         
         #option to use scikit learn or scipy stats kernel algorithms
         if kernel_alg == 'sklearn':
@@ -763,29 +811,22 @@ def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
             values = np.vstack([gbzmp_nr, gtaup_nr]).T
             kernel_bzmp_taup_n = KernelDensity(kernel='gaussian', bandwidth=nw).fit(values)
             
-            if i < 0.1:
-                Ptmp_bzmp_taup_n = np.exp(np.reshape(kernel_bzmp_taup_n.score_samples(positions).T, X_bzmp_n.shape))
-            else: 
-                tmp = np.exp(np.reshape(kernel_bzmp_taup_n.score_samples(positions).T, X_bzmp_n.shape))
-                Ptmp_bzmp_taup_n = np.dstack([Ptmp_bzmp_taup_n, tmp])
+            Ptmp_bzmp_taup_n[:,:,i-1] = np.exp(np.reshape(kernel_bzmp_taup_n.score_samples(positions).T, X_bzmp_n.shape))
             
         elif kernel_alg == 'scipy_stats'  :
             
             positions = np.vstack([X_bzmp_n.ravel(), Y_taup_n.ravel()])
             values = np.vstack([gbzmp_nr, gtaup_nr])  
             kernel_bzmp_taup_n = stats.gaussian_kde(values, bw_method=nw)
-        
-            if i < 0.1:
-                Ptmp_bzmp_taup_n = np.reshape(kernel_bzmp_taup_n(positions).T, X_bzmp_n.shape)
-            else: 
-                tmp = np.reshape(kernel_bzmp_taup_n(positions).T, X_bzmp_n.shape)
-                Ptmp_bzmp_taup_n = np.dstack([Ptmp_bzmp_taup_n, tmp])
+
+            Ptmp_bzmp_taup_n[:,:,i-1] = np.reshape(kernel_bzmp_taup_n(positions).T, X_bzmp_n.shape)
+
    
     #set the density estimate to 0 for negative tau, and x2 for positve tau 
     P_bzmp_taup_n = Ptmp_bzmp_taup_n[:,dt0::,:]*2
 
     #check the normalization
-    norm_bzmp_taup_n = integrate.simps(integrate.simps(P_bzmp_taup_n[:,:,5],Y_taup_n[0,dt0::]), X_bzmp_n[:,0])
+    norm_bzmp_taup_n = integrate.simps(integrate.simps(P_bzmp_taup_n[:,:,-1],Y_taup_n[0,dt0::]), X_bzmp_n[:,0])
     print('\n\n Normalization for P_bzmp_taup_n: ' + str(norm_bzmp_taup_n) + '\n\n')
 
     if plotfig == 1:
@@ -794,7 +835,7 @@ def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
         #fontP.set_size('medium')1
         
         fig, ax = plt.subplots()
-        c = ax.imshow(np.rot90(P_bzmp_taup_n[:,:,5]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        c = ax.imshow(np.rot90(P_bzmp_taup_n[:,:,-1]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         ax.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, label = 'bzm_p, tau_p, geoeff = 0')
         ax.set_xlim([bmin, bmax])
         ax.set_ylim([taumin, tmax])
@@ -809,7 +850,7 @@ def P_bzmp_taup_n(events_frac, kernel_alg = 'scipy_stats', \
 
 def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
                 ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
-                kernel_width = 2, plotfig = 0):  
+                fracs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], kernel_width = 2, plotfig = 0):  
     
     """
     Determine the prior PDF P(Bzm', tau'|(Bzm, tau) n e ; f), the probability 
@@ -856,6 +897,8 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
         defines the axis ranges for Bzm and tau [bmin, bmax, tmin, tmax]
     nbins = 2 elements array 
         defines the number of bins along bzm and tau [nbins_Bzm, nbins_tau]
+    fracs = list
+        fractions to split the events into for calculating evolution dependent pdfs
     kernel_width = float
         defines the kernel smoothing width
     plotfit = int
@@ -880,33 +923,48 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     #kernel smoothing width
     ew = kernel_width
     
-    #hack to get array size
-    X_bzmp, Y_taup, XX_bzm, YY_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt, bmin:bmax:db, tmin:tmax:dt]   
-    db2 = int(len(Y_taup[:,0,:,:]))
+    #set grid containing x,y positions and use to get array size
+    X_bzmp, Y_taup, XX_bzm, YY_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt, bmin:bmax:db, tmin:tmax:dt]
+    db2 = int(len(X_bzmp[:,0,:,:]))
     dt2 = int(len(Y_taup[0,:,:,:]))
     
     #P_bzmp_taup_bzm_tau_e is a function of the fraction of time f throughout an event
     #currently the fit to the data considers every 5th of an event 
-    Ptmp_bzmp_taup_bzm_tau_e = np.zeros((db2,dt2,db2,dt2,6))
-    for i in np.arange(6)*0.2:
+    nfracs = len(fracs)-1
+    Ptmp_bzmp_taup_bzm_tau_e = np.zeros((db2,dt2,db2,dt2,nfracs))
+    for i in range(1, len(fracs)):
     # TODO:
     #for i in [1.0]: 
         
-        #extract raw data points from dataframe of estimates bzm' and tau' for 
-        #fraction f throughout eoeffective events
-        gbzmp = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
-        gtaup = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
-        
-        #gbzmp.iloc[np.where(np.isnan(gbzmp))[0]] = 0.0
-        #gtaup.iloc[np.where(np.isnan(gtaup))[0]] = 0.0
-                
-        gbzmp_n = events_frac.bzm_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 0.0))[0]]
-        gtaup_n = events_frac.tau_predicted.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 0.0))[0]]
-
         #extract raw data points from dataframe of estimates bzm and tau for 
         #fraction f throughout eoeffective events
-        gbzm = events_frac.bzm.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
-        gtau = events_frac.tau.iloc[np.where((events_frac.frac == i) & (events_frac.geoeff == 1.0))[0]]
+        gbzm = events_frac.query('geoeff == 1.0 and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm
+        gtau = events_frac.query('geoeff == 1.0 and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau
+        
+        #extract raw data points from dataframe of estimates bzm' and tau' for 
+        #fraction f throughout eoeffective events
+        gbzmp = events_frac.query('geoeff == 1.0 and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
+        gtaup = events_frac.query('geoeff == 1.0 and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted
+        
+        if gtaup.max() == np.inf:
+            inf_idx = gtaup[gtaup == np.inf].index.values[0]
+            gtaup.drop([inf_idx], inplace = True)
+            gbzmp.drop([inf_idx], inplace = True)
+            gtau.drop([inf_idx], inplace = True)
+            gbzm.drop([inf_idx], inplace = True)
+                
+        gbzmp_n = events_frac.query('geoeff == 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
+        gtaup_n = events_frac.query('geoeff == 0.0 and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted        
+
+        if gtaup_n.max() == np.inf:
+            inf_idx = gtaup_n[gtaup_n == np.inf].index.values[0]
+            gtaup_n.drop([inf_idx], inplace = True)
+            gbzmp_n.drop([inf_idx], inplace = True)
+
+
+        #print("max bzm: "+str(gbzm.max())+", tau: "+ str(gtau.max()))
+        #print("max bzmp: "+str(gbzmp.max())+", taup: "+ str(gtaup.max()))
+        #print("max bzmp_n: "+str(gbzmp_n.max())+", taup_n: "+ str(gtaup_n.max()))
     
         #to handle boundary conditions and limit the density estimate to positve 
         #values of tau' and tau: reflect the data points along the tau' and tau
@@ -917,11 +975,10 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
         gbzm_r = np.concatenate([gbzm, gbzm, gbzm, gbzm]) 
         gtau_r = np.concatenate([gtau, gtau, -gtau, -gtau])
         
-        #grid containing x, y positions 
-        X_bzmp, Y_taup, XX_bzm, YY_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt, bmin:bmax:db, tmin:tmax:dt]
+        #make sure the resulting PDF tau axis will start at 0 hours. 
         dt0 = int(len(Y_taup[1])/2)
         Y_taup = Y_taup-((tmax-tmin)/len(Y_taup[1])/2.)
-        YY_tau = YY_tau-((tmax-tmin)/len(Y_taup[1])/2.)
+        YY_tau = YY_tau-((tmax-tmin)/len(YY_tau[1])/2.)
         
         #option to use scikit learn or scipy stats kernel algorithms
         if kernel_alg == 'sklearn':
@@ -929,7 +986,8 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
             positions = np.vstack([X_bzmp.ravel(), Y_taup.ravel(), XX_bzm.ravel(), YY_tau.ravel()]).T
             values = np.vstack([gbzmp_r, gtaup_r, gbzm_r, gtau_r]).T        
             kernel_bzmp_taup_bzm_tau_e = KernelDensity(kernel='gaussian', bandwidth=ew).fit(values)
-            Ptmp_bzmp_taup_bzm_tau_e[:,:,:,:,int(i*5)] = np.exp(np.reshape(kernel_bzmp_taup_bzm_tau_e.score_samples(positions).T, X_bzmp.shape))
+            
+            Ptmp_bzmp_taup_bzm_tau_e[:,:,:,:,i-1] = np.exp(np.reshape(kernel_bzmp_taup_bzm_tau_e.score_samples(positions).T, X_bzmp.shape))
             
         elif kernel_alg == 'scipy_stats':    
             
@@ -938,7 +996,7 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
             
             try:
                 kernel_bzmp_taup_bzm_tau_e = stats.gaussian_kde(values, bw_method = ew)
-                Ptmp_bzmp_taup_bzm_tau_e[:,:,:,:,int(i*5)] = np.reshape(kernel_bzmp_taup_bzm_tau_e(positions).T, X_bzmp.shape)
+                Ptmp_bzmp_taup_bzm_tau_e[:,:,:,:,i-1] = np.reshape(kernel_bzmp_taup_bzm_tau_e(positions).T, X_bzmp.shape)
             except Exception as e:
                 print(e.__doc__)
                 #print(e.message)
@@ -956,7 +1014,7 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     
     indices = np.squeeze(np.array([[bp],[tp],[b],[t]]))
     
-    norm_bzmp_taup_bzm_tau_e = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e[:,:,:,:,5],
+    norm_bzmp_taup_bzm_tau_e = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e[:,:,:,:,-1],
                                 tp),\
                                 bp), \
                                 t),\
@@ -969,7 +1027,7 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     indb = np.max(np.where(b < predicted_bzmax))
     
     
-    P0 = integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,5],\
+    P0 = integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,-1],\
                                 t),\
                                 b)  
     
@@ -983,11 +1041,11 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
         #fontP.set_size('medium')1
         
         fig, ax = plt.subplots()
-        c = ax.imshow(np.rot90(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,5]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-        ax.plot(gbzmp, gtaup, 'k.', markersize=4, c='r')
+        c = ax.imshow(np.rot90(P_bzmp_taup_bzm_tau_e[:,:,indb,indt,0]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         ax.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b')
-        #ax.set_xlim([bmin, bmax])
-        #ax.set_ylim([taumin, tmax])
+        ax.plot(gbzmp, gtaup, 'k.', markersize=4, c='r')
+        ax.set_xlim([bmin, bmax])
+        ax.set_ylim([taumin, tmax])
         ax.set_xlabel('Bzm')
         ax.set_ylabel('Tau')
         fig.colorbar(c)
@@ -1002,7 +1060,7 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
     P_bzmp_taup_bzm_tau_e2 = np.zeros(P_bzmp_taup_bzm_tau_e.shape)
 
     
-    for i in np.arange(6):
+    for i in range(nfracs):
     #for i in [5]:                          #note only calculating final dimension/time step in above code for quickness testing
         for j in range(len(P0_2[:,0])):
             for k in range(len(P0_2[0,:])):
@@ -1018,7 +1076,7 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
                                t),\
                                b)   
     #total 4D normalization
-    norm_bzmp_taup_bzm_tau_e2 = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e2[:,:,:,:,5],
+    norm_bzmp_taup_bzm_tau_e2 = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzmp_taup_bzm_tau_e2[:,:,:,:,-1],
                                 tp),\
                                 bp), \
                                 t),\
@@ -1095,7 +1153,7 @@ def P_bzmp_taup_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
 
 def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
                 P_bzmp_taup_bzm_tau_e, ranges = [-150, 150, -250, 250], \
-                nbins = [50j, 100j], plotfig = 0):  
+                nbins = [50j, 100j], fracs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], plotfig = 0):  
     
     """
     Determine the posterior PDF P((Bzm, tau) n e |Bzm', tau' ; f), the probability 
@@ -1131,7 +1189,17 @@ def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
         Evidence PDF P(bzm', tau'|n; f)
     P_bzmp_taup_bzm_tau_e = data array
         Likelihood PDF P(Bzm', tau' | (Bzm, tau) n e ; f)
-        
+
+    ranges = 4 element array 
+        defines the axis ranges for Bzm and tau [bmin, bmax, tmin, tmax]
+    nbins = 2 elements array 
+        defines the number of bins along bzm and tau [nbins_Bzm, nbins_tau]
+    fracs = list
+        fractions to split the events into for calculating evolution dependent pdfs
+    plotfit = int
+        plot a figure of the distribution     
+
+    
     output:
         
     P_bzm_tau_e_bzmp_taup = data array
@@ -1149,26 +1217,26 @@ def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
     db = nbins[0]
     dt = nbins[1]
     
-    #hack to get array size
+    #set grid containing x,y positions and use to get array size
     X_bzmp, Y_taup, XX_bzm, YY_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt, bmin:bmax:db, tmin:tmax:dt] 
     dt0 = int(len(Y_taup[1])/2.)
-    db2 = int(len(Y_taup[:,0,:,:]))
-    dt2 = int(len(Y_taup[0,:,:,:]))
-    
+    db2 = int(len(X_bzmp[:,0,:,:]))
+    dt2 = int(len(Y_taup[0,:,:,:])/2)
     
     #true boundary for tau and the corresponding index in the pdf array
     taumin = 0
     #dt0 = dt/2 
     
     #P_bzm_tau_e_bzmp_taup_e is a function of the fraction of time f throughout an event
-    #currently the fit to the data considers every 5th of an event     
-    P_bzm_tau_e_bzmp_taup = np.zeros((db2,db2,db2,db2,6))
-    for i in np.arange(6)*0.2:
+    nfracs = len(fracs)-1    
+    P_bzm_tau_e_bzmp_taup = np.zeros((db2,dt2,dt2,db2,nfracs))
+    for i in range(1, len(fracs)):
+    #for i in np.arange(6)*0.2:
 
-        num = np.multiply(P_bzmp_taup_bzm_tau_e[:,:,:,:,int(i*5)], P_bzm_tau_e) * P_e
-        denom = (P_bzmp_taup_e[:,:,int(i*5)] * P_e) + (P_bzmp_taup_n[:,:,int(i*5)] * P_n)
+        num = np.multiply(P_bzmp_taup_bzm_tau_e[:,:,:,:,i-1], P_bzm_tau_e) * P_e
+        denom = (P_bzmp_taup_e[:,:,i-1] * P_e) + (P_bzmp_taup_n[:,:,i-1] * P_n)
         
-        P_bzm_tau_e_bzmp_taup[:,:,:,:,int(i*5)] = np.divide(num, denom)
+        P_bzm_tau_e_bzmp_taup[:,:,:,:,i-1] = np.divide(num, denom)
         
         #num = np.multiply(Ptmp_bzmp_taup_bzm_tau_e[:,:,:,:,int(i*5)], Ptmp_bzm_tau_e) * P_e
         #denom = (Ptmp_bzmp_taup_e[:,:,int(i*5)] * P_e) + (Ptmp_bzmp_taup_n[:,:,int(i*5)] * P_n)
@@ -1183,7 +1251,7 @@ def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
     axis_vals = np.array([bp,tp,b,t])
     
 
-    norm_bzm_tau_e_bzmp_taup = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzm_tau_e_bzmp_taup[:,:,:,:,5],\
+    norm_bzm_tau_e_bzmp_taup = integrate.simps(integrate.simps(integrate.simps(integrate.simps(P_bzm_tau_e_bzmp_taup[:,:,:,:,-1],\
                                 tp),\
                                 bp), \
                                 t),\
@@ -1193,19 +1261,24 @@ def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
     b = XX_bzm[0,0,:,0]
     t = YY_tau[0,0,0,dt0::]
     
+    
     predicted_duration = 15.0
     predicted_bzmax = -26.0
     indt = np.min(np.where(t > predicted_duration))
     indb = np.max(np.where(b < predicted_bzmax))
     
-    P1 = integrate.simps(integrate.simps(P_bzm_tau_e_bzmp_taup[:,:,indb,indt,5],\
+    #ranget1 =  np.min(np.where(t > 80.0))
+    #rangeb0 =  np.max(np.where(b < -40.0))
+    #rangeb1 =  np.min(np.where(b > 40.0))
+    
+    P1 = integrate.simps(integrate.simps(P_bzm_tau_e_bzmp_taup[:,:,indb,indt,-1],\
                                 t),\
                                 b)
 
     #map of P1 for all planes
-    P1_map = np.zeros((db2,db2,6))
+    P1_map = np.zeros((db2,db2,nfracs))
 
-    for i in range(6):
+    for i in range(nfracs):
         for j in range(db2):
             for k in range(db2):
                 P1_map[j,k,i] = integrate.simps(integrate.simps(P_bzm_tau_e_bzmp_taup[:,:,j,k,i],\
@@ -1223,7 +1296,7 @@ def P_bzm_tau_e_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzmp_taup_e, P_bzmp_taup_n, \
         #fontP.set_size('medium')1
         
         fig, ax = plt.subplots()
-        c = ax.imshow(np.rot90(P_bzm_tau_e_bzmp_taup[:,:,indb,indt,5]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        c = ax.imshow(np.rot90(P_bzm_tau_e_bzmp_taup[:,:,indb,indt,i-1]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
         #ax.imshow(np.rot90(num[:,:,20,3]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r)
         ax.set_xlim([bmin, bmax])
         ax.set_ylim([taumin, tmax])
