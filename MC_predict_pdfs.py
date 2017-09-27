@@ -508,13 +508,13 @@ def P_bzm_tau_e(events_frac, kernel_alg = 'scipy_stats', \
         fig.colorbar(c)
         ax.legend(loc='upper right', prop = fontP, fancybox=True)
 
-    P_bzm_tau_e_rescale = P_bzm_tau_e/norm_bzm_tau_e
-    norm_bzm_tau_e_rescale = integrate.simps(integrate.simps(P_bzm_tau_e_rescale,Y_tau[0,dt0::]), X_bzm[:,0])
+    #P_bzm_tau_e_rescale = P_bzm_tau_e/norm_bzm_tau_e
+    #norm_bzm_tau_e_rescale = integrate.simps(integrate.simps(P_bzm_tau_e_rescale,Y_tau[0,dt0::]), X_bzm[:,0])
 
-    print("here00")
-    print(norm_bzm_tau_e_rescale)
+    #print("here00")
+    #print(norm_bzm_tau_e_rescale)
 
-    return P_bzm_tau_e_rescale, norm_bzm_tau_e_rescale
+    return P_bzm_tau_e, norm_bzm_tau_e
 
 
 def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
@@ -670,18 +670,18 @@ def P_bzmp_taup_e(events_frac, kernel_alg = 'scipy_stats', \
         fig.colorbar(c)
         ax.legend(loc='upper right', prop = fontP, fancybox=True)
 
-    P_bzmp_taup_e_rescale = np.zeros((db2,db2,nfracs))
-    for i in range(0, len(fracs)-1):
-        P_bzmp_taup_e_rescale[:,:,i] = P_bzmp_taup_e[:,:,i]/norm_bzmp_taup_e
-    norm_bzmp_taup_e_rescale = integrate.simps(integrate.simps(P_bzmp_taup_e_rescale[:,:,-1],Y_taup[0,dt0::]), X_bzmp[:,0])
+    #P_bzmp_taup_e_rescale = np.zeros((db2,db2,nfracs))
+    #for i in range(0, len(fracs)-1):
+    #    P_bzmp_taup_e_rescale[:,:,i] = P_bzmp_taup_e[:,:,i]/norm_bzmp_taup_e
+    #norm_bzmp_taup_e_rescale = integrate.simps(integrate.simps(P_bzmp_taup_e_rescale[:,:,-1],Y_taup[0,dt0::]), X_bzmp[:,0])
 
-    print("here00")
-    print(norm_bzmp_taup_e_rescale)
+    #print("here00")
+    #print(norm_bzmp_taup_e_rescale)
 
 
     #return P_bzmp_taup_e, norm_bzmp_taup_e
 
-    return P_bzmp_taup_e_rescale, norm_bzmp_taup_e_rescale
+    return P_bzmp_taup_e, norm_bzmp_taup_e
 
 
 
