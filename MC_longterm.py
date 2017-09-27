@@ -47,7 +47,7 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
             print("Fitting the training data")
             events, events_frac, events_time_frac = fit_training_events(fname=fname, ew=ew[0], nw=nw[0], dst_thresh=dst_thresh)
             
-            return events, events_frac, events_time_frac
+            #return events, events_frac, events_time_frac
             
         events_frac.tau_predicted.iloc[np.where((events_frac.frac == 0.0) & (events_frac.tau_predicted == np.inf))] = 0.0
         events_frac.drop_duplicates(('start','frac'), inplace = True)
@@ -57,7 +57,7 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
             print("Creating the PDFs")
             for e in ew:
                 for n in nw:
-                    pdf = mcp.create_pdfs(events_frac, ew=e, nw=n, nbins=nbins, fracs=fracs, \
+                    pdf = mcp.create_pdfs(events_time_frac, ew=e, nw=n, nbins=nbins, fracs=fracs, \
                             fname=fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)))
                 
         #step 3: fit the validation events 
@@ -72,7 +72,7 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
 
 
         #return events, events_frac, events_predict, events_frac_predict
-        #return events_predict, events_frac_predict
+        return events_time_frac_predict
 
     else:
         #read in events
@@ -140,14 +140,14 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
     #events.to_csv("train/events_"+fname+"train_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8') 
     #events_frac.to_csv("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
     
-    pickle.dump(events_time_frac,open("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
-    pickle.dump(events_frac,open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
-    pickle.dump(events,open("train/events_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
+    pickle.dump(events_time_frac_uniq,open("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
+    pickle.dump(events_frac_uniq,open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
+    pickle.dump(events_uniq,open("train/events_"+fname+"train_dst"+str(abs(dst_thresh))+".p", "wb"))
         
-    mcplt.plot_obs_bz_tau(events, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
-    mcplt.plot_predict_bz_tau_frac(events_frac, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
-    mcplt.plot_obs_vs_predict(events_frac, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
-    mcplt.plot_theta(events_frac, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
+    mcplt.plot_obs_bz_tau(events_uniq, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
+    mcplt.plot_predict_bz_tau_frac(events_frac_uniq, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
+    mcplt.plot_obs_vs_predict(events_frac_uniq, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
+    mcplt.plot_theta(events_frac_uniq, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh)))
     
 
     return events_uniq, events_frac_uniq, events_time_frac_uniq
@@ -219,22 +219,37 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
             
     events_predict = pd.DataFrame()             #observational event characteristics for all MCs
     events_frac_predict = pd.DataFrame()        #predicted events characteristics split into fraction of an event
+    events_time_frac_predict = pd.DataFrame()        #predicted events characteristics split into time increments
     for i in range(len(t1)):
         
-        events_tmp, events_frac_tmp = find_events(t1[i], t2[i], pdf = pdf, plotting=1, \
+        events_tmp, events_frac_tmp, events_time_frac_tmp = find_events(t1[i], t2[i], pdf = pdf, plotting=1, \
                     ew=ew, nw=nw, dst_thresh = dst_thresh, csv=0, livedb = 0, predict = 0)
+        
+        #increment the evt_index by the number of events already held in events_frac, events_time_frac
+        if len(events_predict) > 0:
+            events_frac_tmp.evt_index = events_frac_tmp.evt_index + (events_frac_predict.evt_index.iloc[-1] + 1)
+            events_time_frac_tmp.evt_index = events_time_frac_tmp.evt_index + (events_time_frac_predict.evt_index.iloc[-1] + 1)        
         
         events_predict = events_predict.append(events_tmp)
         events_frac_predict = events_frac_predict.append(events_frac_tmp)
+        events_time_frac_predict = events_time_frac_predict.append(events_time_frac_tmp)
         
-    events_predict = events_predict.drop_duplicates()       
-    events_frac_predict = events_frac_predict.drop_duplicates()  
-        
+    events_predict = events_predict.reset_index(drop=True) 
+    events_frac_predict = events_frac_predict.reset_index(drop=True) 
+    events_time_frac_predict = events_time_frac_predict.reset_index(drop=True)  
+    
+    #drop duplicate events 
+    events_predict_uniq = events_predict.drop_duplicates()       
+    events_frac_predict_uniq = events_frac_predict.drop_duplicates(['evt_index','start','frac_est','bzm_predicted','tau_predicted'])       
+    events_time_frac_predict_uniq = events_time_frac_predict.drop_duplicates(['evt_index','start','frac_est','bzm_predicted','tau_predicted'])    
+
+    
     #events_predict.to_csv("valid/events_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8') 
     #events_frac_predict.to_csv("valid/events_frac"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
     
-    pickle.dump(events_frac_predict,open("valid/events_frac_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
-    pickle.dump(events_predict,open("valid/events_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+    pickle.dump(events_time_frac_predict_uniq,open("valid/events_time_frac_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+    pickle.dump(events_frac_predict_uniq,open("valid/events_frac_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+    pickle.dump(events_predict_uniq,open("valid/events_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
                 
     #plots
     #mcplt.plot_obs_bz_tau(events_predict, dd = "valid/plots/", fname = fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
@@ -243,14 +258,14 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     #mcplt.plot_bzm_vs_tau_skill(events_frac_predict, dd = "valid/plots/", P1 = 0.1, fname=fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
     #mcplt.plot_theta(events_frac_predict, dd = "valid/plots/", fname = fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
         
-    return events_predict, events_frac_predict
+    return events_predict_uniq, events_frac_predict_uniq, events_time_frac_predict_uniq
 
 
 def load_validation_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
 
     #load the fitted events    
     events_frac_predict = pickle.load(open("valid/events_frac_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh_old))+".p","rb")) 
-
+    events_time_frac_predict = pickle.load(open("valid/events_time_frac_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh_old))+".p","rb")) 
 
     if dst_thresh != dst_thresh_old:
 
@@ -274,7 +289,7 @@ def load_validation_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
         pickle.dump(events_frac_predict,open("valid/events_frac_"+fname+"valid_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
             
     
-    return events_frac_predict
+    return events_frac_predict, events_time_frac_predict
 
 
 
