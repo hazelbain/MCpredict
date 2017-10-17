@@ -1385,7 +1385,7 @@ def predict_geoeff(events_frac, pdf):
 
     for i in range(len(events_frac.start)):
                 
-        if events_frac.frac.iloc[i] < 0.2:
+        if events_frac.frac_est.iloc[i] < 0.2:
             continue
         
         if events_frac.tau_predicted.iloc[i] > 250:
@@ -1414,15 +1414,20 @@ def predict_geoeff(events_frac, pdf):
         
         #print(np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,:,:, int(events_frac.frac.iloc[i] * 5)]))
         
+        if events_frac.frac_est.iloc[i] < 0.2:
+            pdf_frac = 0
+        else:
+            pdf_frac = 1
+        
         
         P1[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
-                       [:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)], \
+                       [:,:,bzmp_ind[i], taup_ind[i], pdf_frac], \
                        pdf['axis_vals'][1]),\
                        pdf['axis_vals'][0])
         
         P1_scaled[i] = integrate.simps(integrate.simps((pdf['P_bzm_tau_e_bzmp_taup']\
-                       [:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)]\
-                       * (1/pdf["P1_map"][:,:,int(events_frac.frac.iloc[i] * 5)].max())),\
+                       [:,:,bzmp_ind[i], taup_ind[i], pdf_frac]\
+                       * (1/pdf["P1_map"][:,:,pdf_frac].max())),\
                        pdf['axis_vals'][1]),\
                        pdf['axis_vals'][0])
         
@@ -1440,7 +1445,7 @@ def predict_geoeff(events_frac, pdf):
         #print(bzmp_ind_low, bzmp_ind_high, taup_ind_low, taup_ind_high)
 
         P2[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
-                       [bzmp_ind_low:bzmp_ind_high+1, taup_ind_low:taup_ind_high+1, bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)],\
+                       [bzmp_ind_low:bzmp_ind_high+1, taup_ind_low:taup_ind_high+1, bzmp_ind[i], taup_ind[i], pdf_frac],\
                        pdf['axis_vals'][1][taup_ind_low:taup_ind_high+1]),\
                        pdf['axis_vals'][0][bzmp_ind_low:bzmp_ind_high+1])
         
@@ -1448,8 +1453,8 @@ def predict_geoeff(events_frac, pdf):
         #print("predict2")    
 
         #The most probable values of bzm and tau based on bzmp and taup  
-        prob_max_ind = np.where(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)] == 
-                 np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)]) ) 
+        prob_max_ind = np.where(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind[i], taup_ind[i], pdf_frac] == 
+                 np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind[i], taup_ind[i], pdf_frac]) ) 
         
         #print(len(prob_max_ind[0]))
         
@@ -1463,7 +1468,7 @@ def predict_geoeff(events_frac, pdf):
         tau_prob_max_ind_high = np.max(np.where(pdf['axis_vals'][1] < pdf["axis_vals"][1, tau_most_prob[i]] + 5.0)[0])
         
         P3[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
-                       [bzm_prob_max_ind_low:bzm_prob_max_ind_high+1, tau_prob_max_ind_low:tau_prob_max_ind_high+1, bzmp_ind[i], taup_ind[i], int(events_frac.frac.iloc[i] * 5)],\
+                       [bzm_prob_max_ind_low:bzm_prob_max_ind_high+1, tau_prob_max_ind_low:tau_prob_max_ind_high+1, bzmp_ind[i], taup_ind[i], pdf_frac],\
                        pdf['axis_vals'][1][bzm_prob_max_ind_low:bzm_prob_max_ind_high+1]),\
                        pdf['axis_vals'][0][tau_prob_max_ind_low:tau_prob_max_ind_high+1])
 
