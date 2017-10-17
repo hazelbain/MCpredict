@@ -403,35 +403,51 @@ def plot_boxplot(events_frac,dd='' ,fname=''):
     #plt.close('all')
     
     
+#==============================================================================
+#     print("\n\n\n boxplot \n\n\n")
+#     
+#     plt.figure(1, figsize=(15, 25))
+#     plt.subplot(3,2,1)
+#     evts = events_frac.query('frac == 0.2')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+#     
+#     plt.subplot(3,2,2)
+#     evts = events_frac.query('frac == 0.4')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+#     
+#     print("here0")
+#     
+#     plt.subplot(3,2,3)
+#     evts = events_frac.query('frac > 0.5 and frac < 0.7')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+#     
+#     print("here1")
+#     
+#     plt.subplot(3,2,4)
+#     evts = events_frac.query('frac == 0.8')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+#     
+#     plt.subplot(3,2,5)
+#     evts = events_frac.query('frac == 1.0')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+# 
+#     plt.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
+#     plt.close('all')
+# 
+#==============================================================================
+
+
     print("\n\n\n boxplot \n\n\n")
     
-    plt.figure(1, figsize=(15, 25))
-    plt.subplot(3,2,1)
-    evts = events_frac.query('frac == 0.2')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+    evts = events_frac.query('frac_est > 0.2')
     
-    plt.subplot(3,2,2)
-    evts = events_frac.query('frac == 0.4')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
-    
-    print("here0")
-    
-    plt.subplot(3,2,3)
-    evts = events_frac.query('frac > 0.5 and frac < 0.7')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
-    
-    print("here1")
-    
-    plt.subplot(3,2,4)
-    evts = events_frac.query('frac == 0.8')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
-    
-    plt.subplot(3,2,5)
-    evts = events_frac.query('frac == 1.0')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
-
-    plt.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
+    ax = evts.boxplot(column = 'P1_scaled', by = 'geoeff')
+    fig = ax.get_figure()
+    fig.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
+    
+
+
 
 def write_report(events_frac, dd='', outname = 'html/mc_predict_test_results', fname = '', P1 = 0.2):
     
