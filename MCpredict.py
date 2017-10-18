@@ -1249,8 +1249,6 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
     
     """
     
-    import sys
-    
     #add min Dst value and geoeffective tag for each event
     dstmin = pd.DataFrame({'dst':[]})
     dstdur = pd.DataFrame({'dstdur':[]})
@@ -1338,7 +1336,119 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
     else:
         return geoeff, dstmin, dstdur
     
-          
+def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 0):
+    
+    """"
+    Add tag/column to events dataframes to indicate the geoeffectiveness of the
+    events
+    
+    inputs
+    ------
+    
+    events - pandas data frame
+        each row contains the characteristics for a single event
+    kp_data - dataframe
+        contains 3 hourly kp data to use as a classifier to determine whether the
+        event is geoeffective or non geoeffective 
+    kp_thresh - int 
+         threshold of kp to define geoeffective event
+    kp_dur_thresh - int
+        time above the threshold required to count as geoeffective
+         
+    outputs
+    -------
+    events - pandas data frame
+        each row contains the characteristics for a single event
+    
+    """
+    
+    #add min Dst value and geoeffective tag for each event
+    kpmax = pd.DataFrame({'kp':[]})
+    kpdur = pd.DataFrame({'kpdur':[]})
+    geoeff = pd.DataFrame({'geoeff':[]})
+
+    prev_time = events.start.iloc[-2]
+
+    for j in range(len(events)):
+        
+        #if events is dataframe with events by frac then don't need to calc
+        #kp for each fraction
+       
+        if events.start.iloc[j] != prev_time:
+            
+            #dst values for event time period
+            kp_evt = kp_data[events['start'].iloc[j] : events['end'].iloc[j]]
+    
+            #if there are no kp data values then quit and move onto the next event interval
+            if len(kp_evt) == len(kp_evt.iloc[np.where(kp_evt['kp'] == False)]):
+                geoeff.loc[j] = 2           #unknown geoeff tag  
+                kpdur.loc[j] = 0.0
+                kpmax.loc[j] = -999
+                continue
+    
+            # the max kp value regardless of duration
+            kpmax.loc[j] = kp_evt['kp'].max()
+        
+            
+            #determine periods where kp is continuously above the threshold of kp = 6           
+            kp_evt['tag'] = kp_evt['kp'] >= kp_thresh
+    
+            fst = kp_evt.index[kp_evt['tag'] & ~ kp_evt['tag'].shift(1).fillna(False)]
+            lst = kp_evt.index[kp_evt['tag'] & ~ kp_evt['tag'].shift(-2).fillna(False)]
+            pr = np.asarray([[i, j] for i, j in zip(fst, lst) if j >= i])
+            
+            #if the event never reaches kp > 6 then it's not geoeffective
+            time_above_thresh = []
+            if len(pr) == 0:
+                geoeff.loc[j] = 0  
+                kpdur.loc[j] = 0.0
+            else:                               #at some point during event, kp > 6
+                #find the range of times that kp is above the thresh for the longest
+                for t in pr:
+                    #time_above_thresh.append((t[1] - t[0] + timedelta(seconds = 3600)).seconds/60./60.)
+                    time_above_thresh.append((((t[1] - t[0])*3) + timedelta(seconds = (3600*3)).seconds/60./60.))
+                np.asarray(time_above_thresh)    
+
+                #event is considered geoeffictive if kp > 6 for more than 2 hours 
+                if np.max(time_above_thresh) >= kp_dur_thresh:
+                        
+                    #now question if the kp is just recovering from previous event being geoeffective
+                    if (kp_evt['kp'].iloc[-1] < kp_evt['kp'].iloc[0] - 1):
+    
+                        # if there the previous event interval also decreases then it could be recovering from that
+                        #if j > 0 & geoeff.loc[j-1] == 1:
+                        geoeff.loc[j] = 3                       #kp decreasing from previous event -> ambiguous
+                    else:
+                        geoeff.loc[j] = 1
+    
+                else: 
+                    geoeff.loc[j] = 0       # not above kp threshhold for long enough -> it's not geoeffective
+
+                kpdur.loc[j] = np.max(time_above_thresh)                    
+                #print("geoeff: %i, dstdur %i, " % (geoeff.iloc[j], dstdur.iloc[j]))
+        else:
+            geoeff.loc[j] = geoeff.loc[j-1]
+            kpmax.loc[j] = kpmax.loc[j-1]
+            kpdur.loc[j] = kpdur.loc[j-1]
+            
+            #print(geoeff.iloc[j-1])
+            #print(geoeff.iloc[j])
+        #if geoeff.iloc[j].values == 1:
+        #    print("geoeff %i, dstmin %i, dstdur %i" % (geoeff.iloc[j], dstmin.iloc[j], dstdur.iloc[j]) )
+        
+        
+        #update prev_time
+        prev_time = events.start.iloc[j]
+    
+    #if events is events by frac of an event then only need geoeff
+    if geoeff_only == 0:
+        events = events.reset_index()
+        events = pd.concat([events, kpmax, kpdur, geoeff], axis = 1) 
+
+        return events
+    else:
+        return geoeff, kpmax, kpdur
+    
 
 def predict_geoeff(events_frac, pdf):
         
