@@ -25,7 +25,7 @@ Created on Fri Feb 17 09:29:08 2017
  The top level function Chen_MC_Prediction is called to run the model either to
  real-time data or to a historical dataset e.g.
  
- data, events, events_frac = Chen_MC_Prediction(start_date, end_date, dst_data, pdf)
+ data, events, events_frac = Chen_MC_Prediction(start_date, end_date, dst_data, kp_data, pdf)
 
 
  The original version of this code is from Jim Chen and Nick Arge
@@ -49,15 +49,13 @@ import pandas as pd
 from datetime import datetime
 from datetime import timedelta
 
-import sys
-
-def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
+def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
                        smooth_num = 25, resultsdir='', \
                        real_time = 0, spacecraft = 'ace',\
                        csv = 1, livedb = 0,\
                        plotting = 1, plt_outfile = 'mcpredict.pdf',\
                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots/',\
-                       line = [], dst_thresh = -80):
+                       line = [], dst_thresh = -80, kp_thresh = 6):
 
     """
      This function reads in either real time or historical 
@@ -79,6 +77,8 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
          start time, format "%Y-%m-%d"
      dst_data - dataframe
          dst hourly data
+     kp_data - dataframe
+         kp 3 hourly data
      pdf - data array
          PDF relating Bzm and tau to Bzm' and tau' - see MC_predict_pdfs.py
      predict - int
@@ -105,6 +105,8 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
          times of vertical lines to overplot on data
      dst_thresh - int 
          threshold of dst to define geoeffective event
+     kp_thresh - int 
+         threshold of kp to define geoeffective event
 
 
     outputs
@@ -274,18 +276,19 @@ def Chen_MC_Prediction(sdate, edate, dst_data, pdf, predict = 0,\
        
     
     #create new dataframe to record event characteristics
-    events, events_frac, events_time_frac = create_event_dataframe(data, dst_data, pdf, dst_thresh=dst_thresh, predict = predict)   
+    events, events_frac, events_time_frac = create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh=dst_thresh, predict = predict)   
     
     #plot some stuff   
     if plotting == 1:
+        
         evt_times = events[['start','end']].values
-        mcpredict_plot(data, events_frac, dst_data, line=line, bars = evt_times, plt_outfile = plt_outfile, plt_outpath = plt_outpath)
+        mcpredict_plot(data, events_frac, dst_data, kp_data, line=line, bars = evt_times, plt_outfile = plt_outfile, plt_outpath = plt_outpath)
     
     return data, events, events_frac, events_time_frac
 
 
 
-def create_event_dataframe(data, dst_data, pdf, dst_thresh = -80, t_frac = 5, predict = 0):
+def create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh = -80, kp_thresh = 6, t_frac = 5, predict = 0):
 
     """
     Create two dataframes containing the characteristics for 
@@ -300,6 +303,9 @@ def create_event_dataframe(data, dst_data, pdf, dst_thresh = -80, t_frac = 5, pr
     dst_data - dataframe
         contains hourly dst data to use as a classifier to determine whether the
         event is geoeffective or non geoeffective and recored the max/min value
+    kp_data - dataframe
+        contains 3 hourly kp data to use as a classifier to determine whether the
+        event is geoeffective or non geoeffective and recored the max/min value        
     pdf - data array
         [bzm, tau, bzm_p, tau_p, frac] P(bzm, tau | (bzm_p, tau_p), f)
     t_frac - int
@@ -357,10 +363,20 @@ def create_event_dataframe(data, dst_data, pdf, dst_thresh = -80, t_frac = 5, pr
 
     #get min dst and geoeffective flags
     events = dst_geo_tag(events, dst_data, dst_thresh = dst_thresh, dst_dur_thresh = 2.0)
-
+    
+    print("after dst")
+    
+    #get max kp and kp geoeffective flags
+    events = kp_geo_tag(events, kp_data, kp_thresh = kp_thresh)
+    
+    print("after kp")
+    #print(events)
+    
     #split the event into fractions for bayesian stats
     events_frac, events_time_frac = create_event_frac_dataframe(data, events, evt_indices, frac_type = 'time', t_frac = t_frac)
            
+    print("after frac")
+    
     if predict == 1:
         
         #predict geoeffectivenes
@@ -371,10 +387,12 @@ def create_event_dataframe(data, dst_data, pdf, dst_thresh = -80, t_frac = 5, pr
 
 def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t_frac = 5):
     
-    ###create a dataframe containing infor for every frac of an event
+    ###create a dataframe containing info for every frac of an event
     repeat = t_frac+1    
     events_frac = events.loc[np.repeat(events.index.values, repeat)]
     events_frac.reset_index(inplace=True)
+    
+    print("here frac1")
     
     #remame the column headers to keep track of things
     events_frac.rename(columns={'level_0':'evt_index', 'index':'data_index'}, inplace=True)
@@ -390,6 +408,8 @@ def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t
                             'i_bzmax':0})
     
     events_frac = pd.concat([events_frac, frac], axis = 1) 
+    
+    print("here frac2")
     
     ##bzm at each fraction of an event    
     for i in range(len(evt_indices)):
@@ -449,6 +469,8 @@ def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t
     
     events_time_frac = pd.concat([events_time_frac, time_frac], axis = 1) 
     
+    print("here frac3")
+    
     ##bzm at each fraction of an event    
     for i in range(len(evt_indices)):
         
@@ -486,12 +508,12 @@ def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t
     
 
 
-
+    print("here frac4")
 
 
     return events_frac, events_time_frac
     
-def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 1, dst_thresh = -80, \
+def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], plot_fit = 1, dst_thresh = -80, kp_thresh = 6, \
             plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots_2/',\
             plt_outfile = 'mcpredict.pdf'):
     
@@ -521,8 +543,6 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     
     """
     
-    import read_dst as dst
-    
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
     from matplotlib.patches import Rectangle
@@ -542,7 +562,7 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     #dst_data = dst.read_dst(str(st), str(et))
 
     #plot the ace data
-    f, (ax0, ax1, ax1b, ax1c, ax2, ax3, ax3b, ax4, ax5, ax6, ax7) = plt.subplots(11, figsize=(11,13))
+    f, (ax0, ax1, ax1b, ax1c, ax2, ax3, ax3b, ax4, ax5, ax7, ax8) = plt.subplots(11, figsize=(11,15))
  
     plt.subplots_adjust(hspace = .1)       # no vertical space between subplots
     fontP = FontProperties()                #legend
@@ -817,18 +837,78 @@ def mcpredict_plot(data, events_frac, dst_data, line= [], bars = [], plot_fit = 
     ax7.plot(dst_data[st:et].index, dst_data[st:et]['dst'], label='Dst')
     ax7.hlines(dst_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax7.set_xticklabels(' ')
-    ax7.xaxis.set_major_formatter(dateFmt)
-    ax7.xaxis.set_major_locator(daysLoc)
-    ax7.xaxis.set_minor_locator(hoursLoc)
+    #ax7.xaxis.set_major_formatter(dateFmt)
+    #ax7.xaxis.set_major_locator(daysLoc)
+    #ax7.xaxis.set_minor_locator(hoursLoc)
     ax7.set_xlim([st, et])
     for l in line:
         ax7.axvline(x=l, linewidth=2, linestyle='--', color='black')
     for b in range(len(bars)):
-        ax7.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-    ax7.set_xlabel("Start Time "+ str(st)+" (UTC)")
+        ax7.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['dstgeoeff'].iloc[b*6]], alpha=0.15) 
+    #ax7.set_xlabel("Start Time "+ str(st)+" (UTC)")
     leg = ax7.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
     
+    #ax8.plot(kp_data[st:et].index, kp_data[st:et]['kp'], label='Kp')
+    x0 = mdates.date2num(kp_data.index[0])
+    x1 = mdates.date2num(kp_data.index[1])
+    y=kp_data.kp.iloc[0]
+    w=x1-x0 
+    if y < 4.0:
+        barcolor = 'green'
+    elif y >= 4.0 and y < 5.0:
+        barcolor = 'orange'
+    elif y >= 5.0:
+        barcolor = 'red'
+    ax8.bar(x0, y, width = w, color = barcolor, label='Kp')
+
+    for i in range(len(kp_data)-1):
+        x0 = mdates.date2num(kp_data.index[i])
+        x1 = mdates.date2num(kp_data.index[i+1])
+        y=kp_data.kp.iloc[i]
+        w=x1-x0 
+        if y < 4.0:
+            barcolor = 'green'
+        elif y >= 4.0 and y < 5.0:
+            barcolor = 'orange'
+        elif y >= 5.0:
+            barcolor = 'red'
+        ax8.bar(x0, y, width = w, color = barcolor)
+
+    ax8.hlines(kp_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+    ax8.set_xticklabels(' ')
+    ax8.xaxis.set_major_formatter(dateFmt)
+    ax8.xaxis.set_major_locator(daysLoc)
+    ax8.xaxis.set_minor_locator(hoursLoc)
+    ax8.set_xlim([st, et])
+    ax8.set_ylim(0,10)
+    for l in line:
+        ax8.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for b in range(len(bars)):
+        ax8.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+    ax8.set_xlabel("Start Time "+ str(st)+" (UTC)")
+    leg = ax8.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+    leg.get_frame().set_alpha(0.5)        
+        
+        
+        #x0 = mdates.date2num(kp_data.index[i])
+#==============================================================================
+#         x1 = mdates.date2num(kp_data.index[i+1]) 
+#         width = (x1-x0)
+#         y = kp_data.kp.iloc[i]
+#         
+#         #print(kp_data.index.iloc[i])
+#         #print(x0,x1,y)
+#         
+#         if y < 4.0:
+#             barcolor = 'green'
+#         elif y >= 4.0 and y < 5.0:
+#             barcolor = 'orange'
+#         else:
+#             barcolor = 'red'
+#         rect = Rectangle((x0, 0), width, y, color=barcolor)
+#         ax8.add_patch(rect)
+#==============================================================================
     
     #plt.show()
 
@@ -1088,7 +1168,7 @@ def predict_duration(data, istart, iend, component = 'z'):
         
         #indices of the max b component and theta
         i_bmax = istart + index_b_max
-        i_thetamax = istart + index_theta_max
+        #i_thetamax = istart + index_theta_max
 
 
 #==============================================================================
@@ -1252,7 +1332,7 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
     #add min Dst value and geoeffective tag for each event
     dstmin = pd.DataFrame({'dst':[]})
     dstdur = pd.DataFrame({'dstdur':[]})
-    geoeff = pd.DataFrame({'geoeff':[]})
+    dstgeoeff = pd.DataFrame({'dstgeoeff':[]})
 
     prev_time = events.start.iloc[-2]
 
@@ -1268,7 +1348,7 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
     
             #if there are no dst data values then quit and move onto the next event interval
             if len(dst_evt) == len(dst_evt.iloc[np.where(dst_evt['dst'] == False)]):
-                geoeff.loc[j] = 2           #unknown geoeff tag  
+                dstgeoeff.loc[j] = 2           #unknown geoeff tag  
                 dstdur.loc[j] = 0.0
                 dstmin.loc[j] = 999
                 continue
@@ -1288,7 +1368,7 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
             #if the event never reaches dst < -80 then it's not geoeffective
             time_below_thresh = []
             if len(pr) == 0:
-                geoeff.loc[j] = 0  
+                dstgeoeff.loc[j] = 0  
                 dstdur.loc[j] = 0.0
             else:                               #at some point during event, dst < -80
                 #find the range of times that dst is below the thresh for the longest
@@ -1304,17 +1384,17 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
     
                         # if there the previous event interval also decreases then it could be recovering from that
                         #if j > 0 & geoeff.loc[j-1] == 1:
-                        geoeff.loc[j] = 3                       #dst still rising from previous event -> ambiguous
+                        dstgeoeff.loc[j] = 3                       #dst still rising from previous event -> ambiguous
                     else:
-                        geoeff.loc[j] = 1
+                        dstgeoeff.loc[j] = 1
     
                 else: 
-                    geoeff.loc[j] = 0       # not below dst threshhold for long enough -> it's not geoeffective
+                    dstgeoeff.loc[j] = 0       # not below dst threshhold for long enough -> it's not geoeffective
 
                 dstdur.loc[j] = np.max(time_below_thresh)                    
                 #print("geoeff: %i, dstdur %i, " % (geoeff.iloc[j], dstdur.iloc[j]))
         else:
-            geoeff.loc[j] = geoeff.loc[j-1]
+            dstgeoeff.loc[j] = dstgeoeff.loc[j-1]
             dstmin.loc[j] = dstmin.loc[j-1]
             dstdur.loc[j] = dstdur.loc[j-1]
             
@@ -1330,11 +1410,11 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
     #if events is events by frac of an event then only need geoeff
     if geoeff_only == 0:
         events = events.reset_index()
-        events = pd.concat([events, dstmin, dstdur, geoeff], axis = 1) 
+        events = pd.concat([events, dstmin, dstdur, dstgeoeff], axis = 1) 
 
         return events
     else:
-        return geoeff, dstmin, dstdur
+        return dstgeoeff, dstmin, dstdur
     
 def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 0):
     
@@ -1376,9 +1456,14 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
        
         if events.start.iloc[j] != prev_time:
             
-            #dst values for event time period
-            kp_evt = kp_data[events['start'].iloc[j] : events['end'].iloc[j]]
-    
+            #kp values for event time period
+            evt_stime = events['start'].iloc[j].replace(minute=0, second=0)         #to make sure to find kp interval
+            kp_evt = kp_data[evt_stime : events['end'].iloc[j]]
+
+            #kp value immediately prior to the event            
+            prev_interval_num = kp_data.index.get_loc(kp_evt.index[0]) - 1
+            kp_prev_interval = kp_data.kp.iloc[prev_interval_num]
+            
             #if there are no kp data values then quit and move onto the next event interval
             if len(kp_evt) == len(kp_evt.iloc[np.where(kp_evt['kp'] == False)]):
                 geoeff.loc[j] = 2           #unknown geoeff tag  
@@ -1388,13 +1473,12 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
     
             # the max kp value regardless of duration
             kpmax.loc[j] = kp_evt['kp'].max()
-        
             
             #determine periods where kp is continuously above the threshold of kp = 6           
             kp_evt['tag'] = kp_evt['kp'] >= kp_thresh
     
             fst = kp_evt.index[kp_evt['tag'] & ~ kp_evt['tag'].shift(1).fillna(False)]
-            lst = kp_evt.index[kp_evt['tag'] & ~ kp_evt['tag'].shift(-2).fillna(False)]
+            lst = kp_evt.index[kp_evt['tag'] & ~ kp_evt['tag'].shift(-1).fillna(False)]
             pr = np.asarray([[i, j] for i, j in zip(fst, lst) if j >= i])
             
             #if the event never reaches kp > 6 then it's not geoeffective
@@ -1406,20 +1490,22 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
                 #find the range of times that kp is above the thresh for the longest
                 for t in pr:
                     #time_above_thresh.append((t[1] - t[0] + timedelta(seconds = 3600)).seconds/60./60.)
-                    time_above_thresh.append((((t[1] - t[0])*3) + timedelta(seconds = (3600*3)).seconds/60./60.))
+                    time_above_thresh.append((((t[1] - t[0])*3) + timedelta(seconds = (3600*3))).seconds/60./60.)
                 np.asarray(time_above_thresh)    
 
                 #event is considered geoeffictive if kp > 6 for more than 2 hours 
                 if np.max(time_above_thresh) >= kp_dur_thresh:
                         
                     #now question if the kp is just recovering from previous event being geoeffective
-                    if (kp_evt['kp'].iloc[-1] < kp_evt['kp'].iloc[0] - 1):
+                    #Was the Kp immediately prior to the event above threshold and is the first kp
+                    #value of the event already above threshold.
+                    if np.logical_and((kp_prev_interval > kp_thresh),(kp_evt.kp.iloc[0] > kp_thresh)):    
     
-                        # if there the previous event interval also decreases then it could be recovering from that
-                        #if j > 0 & geoeff.loc[j-1] == 1:
-                        geoeff.loc[j] = 3                       #kp decreasing from previous event -> ambiguous
+                        # if there the kp immediately prior to the event is above threshold then ambigous
+                        geoeff.loc[j] = 3   
+
                     else:
-                        geoeff.loc[j] = 1
+                        geoeff.loc[j] = 1   #kp peaks during the interval
     
                 else: 
                     geoeff.loc[j] = 0       # not above kp threshhold for long enough -> it's not geoeffective
@@ -1431,12 +1517,6 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
             kpmax.loc[j] = kpmax.loc[j-1]
             kpdur.loc[j] = kpdur.loc[j-1]
             
-            #print(geoeff.iloc[j-1])
-            #print(geoeff.iloc[j])
-        #if geoeff.iloc[j].values == 1:
-        #    print("geoeff %i, dstmin %i, dstdur %i" % (geoeff.iloc[j], dstmin.iloc[j], dstdur.iloc[j]) )
-        
-        
         #update prev_time
         prev_time = events.start.iloc[j]
     
@@ -1444,6 +1524,7 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
     if geoeff_only == 0:
         events = events.reset_index()
         events = pd.concat([events, kpmax, kpdur, geoeff], axis = 1) 
+        events.drop(['level_0'],axis=1, inplace = True)
 
         return events
     else:
