@@ -8,6 +8,7 @@ Created on Thu Jul  6 17:00:13 2017
 from datetime import datetime, timedelta
 import MCpredict as MC
 import read_dst as dst
+import read_kp as kp
 import pickle as pickle
 
 pdf = pickle.load(open("PDFs/Pdict_peturb_ew2_nw0.6_dst80.p","rb"))
@@ -33,19 +34,23 @@ pdf = pickle.load(open("PDFs/Pdict_peturb_ew2_nw0.6_dst80.p","rb"))
 #st = datetime(2003, 10, 28)
 #et = datetime(2003, 10, 31)
 
-st = datetime(2004, 2, 10)
-et = datetime(2004, 2, 13)
+st = datetime(1998, 4, 27)
+et = datetime(1998, 5, 6)
 
 stf = datetime.strftime(st, "%Y-%m-%d")
 etf = datetime.strftime(et, "%Y-%m-%d")
 
 #read in the dst data
 dst_data = dst.read_dst_df()
+
+#read in the kp data
+kp_data = kp.read_kp()
                                                  
-data, events_tmp, events_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
-        dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
-        csv = 0, livedb = 0  , predict = 1,\
-        smooth_num = 100, plotting = 1,\
-        plt_outfile = 'test11.pdf' ,\
+data, events_tmp, events_frac_tmp, events_time_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
+        dst_data[st - timedelta(1):et + timedelta(1)], \
+        kp_data[st - timedelta(1):et + timedelta(1)], \
+        pdf = pdf, csv = 0, livedb = 0  , predict = 1,\
+        smooth_num = 100, plotting = 0,\
+        plt_outfile = 'test12.pdf' ,\
         plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/')
                     
