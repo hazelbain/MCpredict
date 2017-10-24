@@ -52,13 +52,13 @@ def read_kp(csv = 0):
 
     #convert to pandas datafram     
     data_df = pd.DataFrame.from_records(data, columns = ['date','kp'])
-        
+    data_df.set_index(['date'], inplace = True, append = False)   
+    
     #save as csv file
     if csv == 1:
         data_df.to_csv('.spyproject/kp.csv', index_label = 'index')
     
     return data_df
-
 
 
 
