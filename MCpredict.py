@@ -363,19 +363,12 @@ def create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh = -80, kp_th
 
     #get min dst and geoeffective flags
     events = dst_geo_tag(events, dst_data, dst_thresh = dst_thresh, dst_dur_thresh = 2.0)
-    
-    print("after dst")
-    
+
     #get max kp and kp geoeffective flags
     events = kp_geo_tag(events, kp_data, kp_thresh = kp_thresh)
-    
-    print("after kp")
-    #print(events)
-    
+
     #split the event into fractions for bayesian stats
     events_frac, events_time_frac = create_event_frac_dataframe(data, events, evt_indices, frac_type = 'time', t_frac = t_frac)
-           
-    print("after frac")
     
     if predict == 1:
         
@@ -391,9 +384,7 @@ def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t
     repeat = t_frac+1    
     events_frac = events.loc[np.repeat(events.index.values, repeat)]
     events_frac.reset_index(inplace=True)
-    
-    print("here frac1")
-    
+
     #remame the column headers to keep track of things
     events_frac.rename(columns={'level_0':'evt_index', 'index':'data_index'}, inplace=True)
     
@@ -408,8 +399,6 @@ def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t
                             'i_bzmax':0})
     
     events_frac = pd.concat([events_frac, frac], axis = 1) 
-    
-    print("here frac2")
     
     ##bzm at each fraction of an event    
     for i in range(len(evt_indices)):
@@ -469,8 +458,6 @@ def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t
     
     events_time_frac = pd.concat([events_time_frac, time_frac], axis = 1) 
     
-    print("here frac3")
-    
     ##bzm at each fraction of an event    
     for i in range(len(evt_indices)):
         
@@ -505,11 +492,6 @@ def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t
 #         events_frac['bym_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bym_predicted'].iloc[frac_ind].values
 #         events_frac['tau_predicted_y'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[frac_ind].values
 #==============================================================================
-    
-
-
-    print("here frac4")
-
 
     return events_frac, events_time_frac
     
