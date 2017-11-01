@@ -259,17 +259,14 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
         istart_y, iend_y = By_start(data, istart, iend)
         #print(istart_y, iend_y)
         
-        if istart_y != None:
-            
-            #print(istart, data['date'][istart], istart_y, data['date'][istart_y])
-            
-            #predict the by event duration
-            predict_duration(data, istart_y, iend_y, component = 'y')
-            lambda_chi_calc(data)
-            
-        #else:
-        #    print("by none")
-        
+#==============================================================================
+#         if istart_y != None:
+#             
+#             #predict the by event duration
+#             predict_duration(data, istart_y, iend_y, component = 'y')
+#             lambda_chi_calc(data)
+#==============================================================================
+       
 
         if icme_event(istart, iend, len(data['date'])):
             validation_stats, data, resultsdir, istart, iend
