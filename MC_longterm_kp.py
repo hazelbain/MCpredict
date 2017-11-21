@@ -117,11 +117,11 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80, kp_thresh = 
 
     #### step 1: gather events to use for the bayseian PDF, uses Chen_MC_prediction without predict keyword
 
-    #t1 = ['1-jan-1998','1-jan-1999','1-jan-2000','1-jan-2001','1-jan-2002','1-jan-2003']
-    #t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003']
+    t1 = ['1-jan-1998','1-jan-1999','1-jan-2000','1-jan-2001','1-jan-2002','1-jan-2003']
+    t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003']
     
-    t1 = ['7-jan-2000']
-    t2 = ['14-feb-2000']
+    #t1 = ['7-jan-2000']
+    #t2 = ['13-jan-2000']
     
     events = pd.DataFrame()             #observational event characteristics for all MCs
     events_frac = pd.DataFrame()        #predicted events characteristics split into fraction of an event
@@ -160,7 +160,6 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80, kp_thresh = 
     mcplt.plot_predict_bz_tau_frac(events_frac_uniq, dd = "train/plots/", fname = fname+"train_kp"+str(abs(kp_thresh)))
     mcplt.plot_obs_vs_predict(events_frac_uniq, dd = "train/plots/", fname = fname+"train_kp"+str(abs(kp_thresh)))
     #mcplt.plot_theta(events_frac_uniq, dd = "train/plots/", fname = fname+"train_kp"+str(abs(kp_thresh)))
-    
 
     return events_uniq, events_frac_uniq, events_time_frac_uniq
 
