@@ -141,20 +141,29 @@ def plot_obs_bz_tau(events, dd = '', outname = 'bzm_vs_tau', fname=''):
     w_geoeff = np.where(events['geoeff'] == 1.0)[0]
     w_no_geoeff = np.where(events['geoeff'] == 0)[0]
 
+    #w_geoeff6 = events.query('geoeff == 1.0 and kp >= 5.6 and kp < 6.6')
+    #w_geoeff7 = events.query('geoeff == 1.0 and kp >= 6.6 and kp < 7.6')
+    #w_geoeff8 = events.query('geoeff == 1.0 and kp >= 8')
+    
                            
     fontP = FontProperties()                #legend
     fontP.set_size('medium')                       
                            
                            
-    plt.scatter(events['bzm'].iloc[w_no_geoeff], events['tau'].iloc[w_no_geoeff], c = 'b', label = 'Not Geoeffecive' )                         
-    plt.scatter(events['bzm'].iloc[w_geoeff], events['tau'].iloc[w_geoeff], c = 'r', label = 'Geoeffective')
-    plt.ylim(0,250)
-    plt.xlim(-150,150)
+    plt.scatter(events['bzm'].iloc[w_no_geoeff], events['tau'].iloc[w_no_geoeff], c = 'b', label = 'Not Geoeffecive' )   
+    plt.scatter(events['bzm'].iloc[w_geoeff], events['tau'].iloc[w_geoeff], c = 'r', label = 'Geoeffecive' )                         
+    #plt.scatter(w_geoeff6['bzm'], w_geoeff6['tau'], c = 'g', label = 'Geoeffective 6')
+    #plt.scatter(w_geoeff7['bzm'], w_geoeff7['tau'], c = 'orange', label = 'Geoeffective 7')
+    #plt.scatter(w_geoeff8['bzm'], w_geoeff8['tau'], c = 'r', label = 'Geoeffective 8')
+    plt.ylim(0,150)
+    plt.xlim(-75,75)
     plt.xlabel("$\mathrm{B_{zm}}$ (nT)")
     plt.ylabel("Duration (hr)")
     leg = plt.legend(loc='upper right', prop = fontP, fancybox=True, \
                      frameon=True, scatterpoints = 1 )
     leg.get_frame().set_alpha(0.5)
+    
+    print(dd + outname + '_' + fname + '.jpeg')
     
     plt.savefig(dd + outname + '_' + fname + '.jpeg', format='jpeg')
     
@@ -403,35 +412,51 @@ def plot_boxplot(events_frac,dd='' ,fname=''):
     #plt.close('all')
     
     
+#==============================================================================
+#     print("\n\n\n boxplot \n\n\n")
+#     
+#     plt.figure(1, figsize=(15, 25))
+#     plt.subplot(3,2,1)
+#     evts = events_frac.query('frac == 0.2')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+#     
+#     plt.subplot(3,2,2)
+#     evts = events_frac.query('frac == 0.4')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+#     
+#     print("here0")
+#     
+#     plt.subplot(3,2,3)
+#     evts = events_frac.query('frac > 0.5 and frac < 0.7')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+#     
+#     print("here1")
+#     
+#     plt.subplot(3,2,4)
+#     evts = events_frac.query('frac == 0.8')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+#     
+#     plt.subplot(3,2,5)
+#     evts = events_frac.query('frac == 1.0')
+#     evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+# 
+#     plt.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
+#     plt.close('all')
+# 
+#==============================================================================
+
+
     print("\n\n\n boxplot \n\n\n")
     
-    plt.figure(1, figsize=(15, 25))
-    plt.subplot(3,2,1)
-    evts = events_frac.query('frac == 0.2')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
+    evts = events_frac.query('frac_est > 0.2')
     
-    plt.subplot(3,2,2)
-    evts = events_frac.query('frac == 0.4')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
-    
-    print("here0")
-    
-    plt.subplot(3,2,3)
-    evts = events_frac.query('frac > 0.5 and frac < 0.7')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
-    
-    print("here1")
-    
-    plt.subplot(3,2,4)
-    evts = events_frac.query('frac == 0.8')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
-    
-    plt.subplot(3,2,5)
-    evts = events_frac.query('frac == 1.0')
-    evts.boxplot(column = 'P1_scaled', by = 'geoeff', ax=plt.gca())
-
-    plt.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
+    ax = evts.boxplot(column = 'P1_scaled', by = 'geoeff')
+    fig = ax.get_figure()
+    fig.savefig(dd+'P1_boxplot_'+fname+'.jpeg', format = 'jpeg')
     plt.close('all')
+    
+
+
 
 def write_report(events_frac, dd='', outname = 'html/mc_predict_test_results', fname = '', P1 = 0.2):
     

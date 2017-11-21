@@ -172,7 +172,7 @@ def read_database(tstart, tend, server = 'swds-st', \
    
     #execute database call
     cursor.execute("SELECT * FROM [" + database + "].[dbo].[" + view + "] \
-               where time_tag > '"+ tstart +"' and time_tag <= '"+ tend +" 23:59';")
+               where time_tag > '"+ tstart +"' and time_tag <= '"+ tend +" 23:59' order by time_tag;")
 
     #get column names
     col_name = [column[0] for column in cursor.description]
