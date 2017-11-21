@@ -78,13 +78,15 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
         #read in events
         print("Loading the validation data")
         events_frac_predict = pickle.load(open("valid/events_frac_"+valid_fname+"valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
+        events_time_frac_predict = pickle.load(open("valid/events_time_frac_"+valid_fname+"valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
+
 
     events_frac_predict.drop_duplicates(('start','frac'), inplace = True)
 
     #step 4: prediction (once events are fittng we can skip the first step)
     if predict == 1:
         print("Predicting the geoeffectiveness")
-        events_frac_predict2 = validate_events(events_frac_predict, fname=fname, \
+        events_time_frac_predict2 = validate_events(events_time_frac_predict, fname=fname, \
                 ew=ew, nw=nw, dst_thresh=dst_thresh)
                
     ##!!!!!!!!! check the boxplot to get the threshold P1 !!!!!!!!###
@@ -293,7 +295,7 @@ def load_validation_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
 
 
 
-def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80):
+def validate_events(events_time_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], dst_thresh = -80):
 
     #### step 3a rerun predict witout reading in the data again
     
@@ -305,16 +307,16 @@ def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.
             
             #first strip the predict from event_frac_predict
             cols_to_keep = ['evt_index', 'data_index','start', 'bzm', 'tau', 'istart', 'iend',\
-                            'end', 'dst', 'dstdur', 'geoeff', 'bzm_predicted', 'frac', 'i_bzmax', \
+                            'end', 'dst', 'dstdur', 'geoeff', 'bzm_predicted', 'frac', 'frac_est', 'i_bzmax', \
                             'tau_predicted','theta_z_max','dtheta_z']
-            events_frac = events_frac_predict.filter(cols_to_keep,axis=1)
+            events_time_frac = events_time_frac_predict.filter(cols_to_keep,axis=1)
             
             #repredict the geoeffectiveness without refitting Bz 
-            events_frac_predict2 = predict_geoeff(events_frac, pdf)
+            events_time_frac_predict2 = predict_geoeff(events_time_frac, pdf)
 
             #save
             #events_frac_predict2.to_csv("valid/events_frac_predict_"+fname+"valid_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".csv", sep='\t', encoding='utf-8')   
-            pickle.dump(events_frac_predict2,open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+            pickle.dump(events_time_frac_predict2,open("valid/events_time_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
             
             #plots
             #mcplt.plot_obs_bz_tau(events_predict, dd = "valid/plots/", fname = fname+"_valid_ew"+str(ew)+"_nw"+str(nw))
@@ -324,10 +326,10 @@ def validate_events(events_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.7, 0.
             #mcplt.plot_bzmp_vs_taup_skill(events_frac_predict, dd = "valid/plots/", P1 = 0.1, fname=fname+'_valid_ew'+str(ew)+'_nw'+str(nw))
             
             #boxplot
-            mcplt.plot_boxplot(events_frac_predict2, dd = 'valid/plots/', fname = fname+'predict_ew'+str(e)+'_nw'+str(n)+"_dst"+str(abs(dst_thresh)))
+            mcplt.plot_boxplot(events_time_frac_predict2, dd = 'valid/plots/', fname = fname+'predict_ew'+str(e)+'_nw'+str(n)+"_dst"+str(abs(dst_thresh)))
 
     
-    return events_frac_predict2
+    return events_time_frac_predict2
 
 
 
