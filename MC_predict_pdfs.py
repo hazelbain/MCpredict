@@ -42,7 +42,7 @@ from scipy import stats
 import pickle as pickle
 import scipy.integrate as integrate
    
-import kde_hb as hb
+#import kde_hb as hb
 
 import numpy as np
 import matplotlib.pyplot as plt

@@ -12,6 +12,7 @@ import numpy as np
 from datetime import datetime
 import numpy.lib.recfunctions
 
+
 def get_data(tstart, tend, server = 'swds-st', \
              database = 'RA', view = 'ace_mag_1m',\
              livedb = 0, csv = 1,  outpath = 'C:/Users/hazel.bain/data/'):
@@ -45,6 +46,11 @@ def get_data(tstart, tend, server = 'swds-st', \
 
     from datetime import timedelta
     import os
+    import platform
+    
+    if platform.system() == 'Darwin':
+        outpath = '/Users/hazelbain/data'
+    
     
     #convert times to datetime
     st = datetime(int(tstart.split('-')[0]), int(tstart.split('-')[1]), int(tstart.split('-')[2]))
@@ -54,10 +60,12 @@ def get_data(tstart, tend, server = 'swds-st', \
     dates_to_check = [st + timedelta(int(i)) for i in np.arange(0,(et-st).days+1)]
     for d in dates_to_check:
 
+        
         #if there is no datafile for that day or livedb is set, get the data from the databacse
         if not os.path.isfile(outpath + '/' + view + '/' + \
                               view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv') \
-                              or livedb == 1 :
+                              or livedb == 1 :      
+                                  
             t = datetime.strftime(d, "%Y-%m-%d")
             
             #print("livedb mode or datafile missing for day " + t + ": accessing databasee")
@@ -78,13 +86,20 @@ def get_data(tstart, tend, server = 'swds-st', \
         else:
             
             if view == 'ace_mag_1m':
+                
                 file = view + '_' + datetime.strftime(d, "%Y%m%d") + '.csv'
                 data_tmp = read_ace_mag_1m_database_csv(file)
+
+                print("reading mag data" + file)
 
             #elif view == 'ace_swepam_1m':
             elif view == 'tb_ace_sw_1m':   
                 file = view + '_' + datetime.strftime(d, "%Y%m%d") + '.csv'
                 data_tmp = read_ace_swepam_1m_database_csv(file) 
+                
+                print("reading sw data" + file)
+        
+        print("finished reading data")
         
         #concatenate the data files
         if d == dates_to_check[0]:
@@ -305,8 +320,11 @@ def read_ace_mag_1m_database_csv(file, path = 'C:/Users/hazel.bain/data/ace_mag_
     
     """
     
-    #file = 'ace_mag_test.csv'
-
+    import platform
+    
+    if platform.system() == 'Darwin':
+        path = '/Users/hazelbain/data/ace_mag_1m/'
+    
     #Richardson and Cane spreedsheet column names and format
     col_name =  ('time_tag', 'dsflag', 'gsm_bx', \
                  'gsm_by', 'gsm_bz', 'bt', 'gsm_lat', 'gsm_lon')
@@ -364,7 +382,11 @@ def read_ace_swepam_1m_database_csv(file, path = 'C:/Users/hazel.bain/data/tb_ac
     
     """
     
-    #file = 'swepam_test.csv'
+    import platform
+    
+    if platform.system() == 'Darwin':
+        path = '/Users/hazelbain/data/tb_ace_sw_1m/'
+
 
     #Richardson and Cane spreedsheet column names and format
     col_name =  ('time_tag', 'insert_time', 'dsflag', 'n', 'v', 't', 'vx',\

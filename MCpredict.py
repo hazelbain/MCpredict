@@ -130,8 +130,9 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
     print("End date  : " + edate + "\n")
     
     #min_duration of at least 120 minutes in order to be considered as an event
-    min_duration=120.
+    min_duration=180.
     
+    print("pre get data")
 
     #read in mag and solar wind data
     if spacecraft == 'ace':
@@ -140,8 +141,12 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
         mag_data = get_data(sdate, edate, view = 'ace_mag_1m', \
                             csv = csv, livedb = livedb)
 
+        print("got mag data")
+
         sw_data = get_data(sdate, edate, view = 'tb_ace_sw_1m', \
                            csv = csv, livedb = livedb)
+        
+        print("got sw data")
 
         #convert to pandas DataFrame
         #MAYBE MOVE THIS STEP INTO THE GET DATA FUNCTION!!!!
@@ -154,6 +159,8 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
     
     #clean data
     mag_clean, sw_clean = clean_data(mag, sw)
+    
+    print("after clean")
     
     #pd.set_option('display.max_rows',100)
     #print(mag_clean.gsm_lat.iloc[0:100])  
@@ -271,6 +278,8 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
         if icme_event(istart, iend, len(data['date'])):
             validation_stats, data, resultsdir, istart, iend
        
+    
+    print("here pre event create")
     
     #create new dataframe to record event characteristics
     events, events_frac, events_time_frac = create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh=dst_thresh, predict = predict)   
@@ -568,14 +577,18 @@ def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], pl
     leg = ax0.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
 
-    #plot the position of max bz
-    for i in np.arange(5, len(events_frac), 6):
-        if (events_frac['geoeff'].iloc[i] == 1.0):
-            wmax_by = np.where( data['by'].iloc[events_frac['istart_by'].iloc[i] : events_frac['iend_by'].iloc[i]] == events_frac['bym'].iloc[i])[0]
-
-            ax0.axvline(x=data['date'].iloc[events_frac['istart_by'].iloc[i] + wmax_by].values[0], \
-                     linewidth=1, linestyle='--', color='grey')
-
+#==============================================================================
+#     #plot the position of max bz
+#     for i in np.arange(5, len(events_frac), 6):
+#         if (events_frac['geoeff'].iloc[i] == 1.0):
+#             wmax_by = np.where( data['by'].iloc[events_frac['istart_by'].iloc[i] : events_frac['iend_by'].iloc[i]] == events_frac['bym'].iloc[i])[0]
+# 
+#             print(events_frac['istart_by'].iloc[i] + wmax_by)
+# 
+#             ax0.axvline(x=data['date'].iloc[events_frac['istart_by'].iloc[i] + wmax_by].values[0], \
+#                      linewidth=1, linestyle='--', color='grey')
+# 
+#==============================================================================
     #max bz line
     for b in range(len(bars)):
         if events_frac['geoeff'].iloc[b*6] == 1.0:
@@ -828,6 +841,9 @@ def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], pl
     leg = ax7.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
     
+    
+    #--- plot kp
+    
     #ax8.plot(kp_data[st:et].index, kp_data[st:et]['kp'], label='Kp')
     x0 = mdates.date2num(kp_data.index[0])
     x1 = mdates.date2num(kp_data.index[1])
@@ -839,7 +855,7 @@ def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], pl
         barcolor = 'orange'
     elif y >= 5.0:
         barcolor = 'red'
-    ax8.bar(x0, y, width = w, color = barcolor, label='Kp')
+    ax8.bar(x0, y, width = w, color = barcolor, edgecolor='black', align = 'edge', label='Kp')
 
     for i in range(len(kp_data)-1):
         x0 = mdates.date2num(kp_data.index[i])
@@ -852,7 +868,7 @@ def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], pl
             barcolor = 'orange'
         elif y >= 5.0:
             barcolor = 'red'
-        ax8.bar(x0, y, width = w, color = barcolor)
+        ax8.bar(x0, y, width = w, color = barcolor, edgecolor='black', align = 'edge')
 
     ax8.hlines(kp_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax8.set_xticklabels(' ')
@@ -1435,9 +1451,30 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
        
         if events.start.iloc[j] != prev_time:
             
+            #print("\n new event")
+            
             #kp values for event time period
             evt_stime = events['start'].iloc[j].replace(minute=0, second=0)         #to make sure to find kp interval
+            evt_stime = evt_stime - timedelta(seconds = 3*60*60)                     #to make sure to catch the first Kp interval
+            
+            #print(events['start'].iloc[j], events['end'].iloc[j])
+
             kp_evt = kp_data[evt_stime : events['end'].iloc[j]]
+            
+            #print(kp_evt)
+        
+            
+            #print("dropping")
+            
+            ##check that the first and last Kp interval overlap the event by at least 90 mins
+            if ((events['start'].iloc[j] - kp_evt.index[0]).seconds / 60.) > 60.:
+                #print("dropping first interval ")
+                kp_evt.drop(kp_evt.index[0], inplace = True)
+                
+            if ((events['end'].iloc[j]- kp_evt.index[-1]).seconds / 60.) < 60.:
+                #print("dropping last interval")
+                kp_evt.drop(kp_evt.index[-1], inplace = True)
+            
 
             #kp value immediately prior to the event            
             prev_interval_num = kp_data.index.get_loc(kp_evt.index[0]) - 1
@@ -1459,6 +1496,10 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
             fst = kp_evt.index[kp_evt['tag'] & ~ kp_evt['tag'].shift(1).fillna(False)]
             lst = kp_evt.index[kp_evt['tag'] & ~ kp_evt['tag'].shift(-1).fillna(False)]
             pr = np.asarray([[i, j] for i, j in zip(fst, lst) if j >= i])
+
+
+            #print(kp_evt)    
+            #print('\n')
             
             #if the event never reaches kp > 6 then it's not geoeffective
             time_above_thresh = []
@@ -1474,7 +1515,11 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
 
                 #event is considered geoeffictive if kp > 6 for more than 2 hours 
                 if np.max(time_above_thresh) >= kp_dur_thresh:
-                        
+                    
+                    print('\n')
+                    print(kp_prev_interval, kp_evt.kp.iloc[0])
+                    print('\n')
+                    
                     #now question if the kp is just recovering from previous event being geoeffective
                     #Was the Kp immediately prior to the event above threshold and is the first kp
                     #value of the event already above threshold.

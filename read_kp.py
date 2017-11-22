@@ -11,7 +11,33 @@ from urllib.request import urlopen
 from datetime import datetime
 
 
-def read_kp(csv = 0):
+def read_kp(path = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/.spyproject/'):
+    """
+    Reads in hourly Kp data from csv file to pandas dataframe
+    
+    inputs:
+        
+    path: string
+        path to working directory
+    
+    """
+    
+    file = 'kp.csv'
+    
+    col_name =  ('index', 'date0', 'kp')
+    
+    parse = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+    df = pd.read_csv(path + file, sep = ',', names = col_name, \
+                parse_dates={'date': [1]}, date_parser=parse, \
+                skiprows = 1, index_col = 0)  
+    
+    df = df.drop('index',1)
+    
+    return df
+
+
+
+def fetch_kp(csv = 0):
 
     data = []
     for year in range(1994,2018): 

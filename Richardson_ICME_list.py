@@ -15,6 +15,11 @@ def read_richardson_icme_list(indir = 'C:/Users/hazel.bain/Documents/MC_predict/
     indir: working directory path
 
     """
+    
+    import platform
+    
+    if platform.system() == 'Darwin':
+        indir = '/Users/hazelbain/Dropbox/MCpredict/MCpredict/'
 
     #indir = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/.spyproject/'
     file = 'Richardson_and_Cane_ICME_list.csv'
