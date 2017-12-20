@@ -75,8 +75,9 @@ def MCpredict_all_Richardson(plotting = 0, csv = 0, livedb = 1,
     errpredict = []                     # keep a note of any events where there were errors
     
     count = 0
-    #for i in range(0,len(mc_list12['mc_start'])):
-    for i in [7]: 
+    for i in range(0,len(mc_list12['mc_start'])):
+    #for i in np.arange(21,50): 
+        
         
         if mc_list12['mc_start'][i] == None:
             continue
@@ -108,8 +109,6 @@ def MCpredict_all_Richardson(plotting = 0, csv = 0, livedb = 1,
                     plt_outfile = 'mcpredict_'+ datetime.strftime(mc_list12['mc_start'][i], "%Y-%m-%d_%H%M") + '.pdf' ,\
                     plt_outpath = '/Users/hazelbain/Dropbox/MCpredict/MCpredict/richardson_kptest1/')
                    
-            
-
             
             #increment the evt_index by the number of events already held in events_frac, events_time_frac    
             if len(events) > 0:
