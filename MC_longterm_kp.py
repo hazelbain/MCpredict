@@ -403,7 +403,7 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                         pdf = pdf, csv = csv, livedb = livedb, predict = predict,\
                         smooth_num = 100, dst_thresh = dst_thresh, kp_thresh = kp_thresh, plotting = plotting,\
                         plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_kp1/')
+                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_time3/')
                     
                     #increment the evt_index by the number of events already held in events_frac, events_time_frac    
                     if len(events) > 0:

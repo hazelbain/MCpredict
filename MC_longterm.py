@@ -13,12 +13,14 @@ Created on Thu Feb 16 12:05:15 2017
 """
 import MCpredict as MC
 import read_dst as dst
+import read_kp as kp
 
 import numpy as np
 import pandas as pd
 from datetime import timedelta, datetime
 import calendar
 import pickle as pickle
+import platform
 
 import MC_predict_pdfs as mcp
 import MC_predict_plots as mcplt
@@ -72,7 +74,8 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
 
 
         #return events, events_frac, events_predict, events_frac_predict
-        return events_time_frac_predict
+        #return events_time_frac_predict
+        #return events_predict, events_frac_predict, events_time_frac_predict
 
     else:
         #read in events
@@ -81,7 +84,7 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
         events_time_frac_predict = pickle.load(open("valid/events_time_frac_"+valid_fname+"valid_ew"+str(ew[0])+"_nw"+str(nw[0])+"_dst"+str(abs(dst_thresh))+".p","rb"))
 
 
-    events_frac_predict.drop_duplicates(('start','frac'), inplace = True)
+    #events_frac_predict.drop_duplicates(('start','frac'), inplace = True)
 
     #step 4: prediction (once events are fittng we can skip the first step)
     if predict == 1:
@@ -98,9 +101,15 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
             for n in nw:
                 events_frac_predict2 = pickle.load(open("valid/events_frac_"+fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb"))
                 mcplt.write_report(events_frac_predict2, dd = "valid/plots/", fname=fname+"predict_ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh)), P1 = P1)
-            
-    return events_frac_predict2
     
+    #dump in pickle
+    pickle.dump(events_time_frac_predict2,open("valid/events_time_frac_"+fname+"predict_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+    pickle.dump(events_frac_predict,open("valid/events_frac_"+fname+"predict_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+    pickle.dump(events_predict,open("valid/events_"+fname+"predict_ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p", "wb"))
+     
+
+    #return events_frac_predict2
+    return events_predict, events_frac_predict, events_time_frac_predict2
 
 
 def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
@@ -158,8 +167,12 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80):
 def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
 
     #load the fitted events    
-    events_frac = pickle.load(open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh_old))+".p","rb")) 
-    events_time_frac = pickle.load(open("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh_old))+".p","rb")) 
+    #events_frac = pickle.load(open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh_old))+".p","rb")) 
+    #events_time_frac = pickle.load(open("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh_old))+".p","rb")) 
+
+    events_frac = pd.read_pickle("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh_old))+".p") 
+    events_time_frac = pd.read_pickle("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh_old))+".p") 
+
 
 
     if dst_thresh != dst_thresh_old:
@@ -176,7 +189,7 @@ def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
                               dst_dur_thresh = 2, geoeff_only = 1)
     
         #replace geoeff column
-        events_frac.geoeff = geoeff.geoeff
+        events_frac.geoeff = geoeff
         events_frac.dst = dstmin
         events_frac.dstdur = dstdur
         
@@ -185,7 +198,7 @@ def load_training_events(fname, ew, nw, dst_thresh=-80, dst_thresh_old = -80):
                           dst_dur_thresh = 2, geoeff_only = 1)
     
         #replace geoeff column
-        events_time_frac.geoeff = geoeff_time.geoeff
+        events_time_frac.geoeff = geoeff_time
         events_time_frac.dst = dstmin_time
         events_time_frac.dstdur = dstdur_time
         
@@ -202,11 +215,10 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     #### step 3: Use the generate PDFs to predict the geoeffectiveness of events
     #### in the remainder of the data set
     
-    
     #restore prediction matrix
 
     
-    pdf = pickle.load(open("PDFs/Pdict_"+fname+"ew"+str(ew)+"_nw"+str(nw)+"_dst"+str(abs(dst_thresh))+".p","rb"))
+    pdf = pickle.load(open("PDFs/Pdictn_"+fname+"ew"+str(ew)+"_nw"+str(nw)+"_nb25_dst"+str(abs(dst_thresh))+".p","rb"))
             
     t1 = ['1-jan-2004','1-jan-2005',\
           '1-jan-2006','1-jan-2007','1-jan-2008','1-jan-2009','1-jan-2010','1-jan-2011','1-jan-2012','1-jan-2013',\
@@ -215,8 +227,8 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
           '31-dec-2006','31-dec-2007','31-dec-2008','31-dec-2009','31-dec-2010','31-dec-2011','31-dec-2012','31-dec-2013',
           '31-dec-2014','31-dec-2015','31-dec-2016','31-may-2017']
     
-    #t1 = ['1-jan-2004']
-    #t2 = ['31-jan-2004']
+    t1 = ['1-jan-2004']
+    t2 = ['14-jan-2004']
 
             
     events_predict = pd.DataFrame()             #observational event characteristics for all MCs
@@ -224,7 +236,7 @@ def fit_validation_events(fname='', ew=2, nw=0.5, dst_thresh = -80):
     events_time_frac_predict = pd.DataFrame()        #predicted events characteristics split into time increments
     for i in range(len(t1)):
         
-        events_tmp, events_frac_tmp, events_time_frac_tmp = find_events(t1[i], t2[i], pdf = pdf, plotting=1, \
+        events_tmp, events_frac_tmp, events_time_frac_tmp = find_events(t1[i], t2[i], pdf = pdf, fname = fname, plotting=1, \
                     ew=ew, nw=nw, dst_thresh = dst_thresh, csv=0, livedb = 0, predict = 0)
         
         #increment the evt_index by the number of events already held in events_frac, events_time_frac
@@ -303,7 +315,7 @@ def validate_events(events_time_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.
         for n in nw:
             
             #restore prediction matrix
-            pdf = pickle.load(open("PDFs/Pdict_"+fname+"ew"+str(e)+"_nw"+str(n)+"_dst"+str(abs(dst_thresh))+".p","rb")) 
+            pdf = pickle.load(open("PDFs/Pdictn_"+fname+"ew"+str(e)+"_nw"+str(n)+"_nb25_dst"+str(abs(dst_thresh))+".p","rb")) 
             
             #first strip the predict from event_frac_predict
             cols_to_keep = ['evt_index', 'data_index','start', 'bzm', 'tau', 'istart', 'iend',\
@@ -335,9 +347,16 @@ def validate_events(events_time_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.
 
 
 
-def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0, 
+def find_events(start_date, end_date, fname = '', plotting = 0, csv = 1, livedb = 0, 
                 predict = 0, ew = 2, nw = 1, dst_thresh = -80, pdf = np.zeros((50,50,50,50))):
 
+        
+    if platform.system() == 'Darwin':
+        proj_dir = '/Users/hazelbain/Dropbox/MCpredict/MCpredict/'
+    else:
+        proj_dir = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/'
+    
+    
     #format times
     start_date = datetime.strptime(start_date, "%d-%b-%Y")
     end_date= datetime.strptime(end_date, "%d-%b-%Y")
@@ -350,6 +369,9 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
             
         #read in the dst data
         dst_data = dst.read_dst_df()
+        
+        #read in the kp data
+        kp_data = kp.read_kp()
         
         #get list of week start and end dates - with overlap of one day
         date_list = []
@@ -381,13 +403,27 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                 stf = datetime.strftime(st, "%Y-%m-%d")
                 etf = datetime.strftime(et, "%Y-%m-%d")
                 
-                try:      
+                try:  
+                    #print("hereerers")
+                    
+                    #print(stf,etf)
+                    #print(len(dst_data[st - timedelta(1):et + timedelta(1)])) 
+                    #print(len(kp_data[st - timedelta(1):et + timedelta(1)]))
+                    #print(list(pdf))
+                    #print(csv, livedb, predict, dst_thresh, plotting)
+                    #print('mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf')
+                    #print(proj_dir + 'longterm_time3/')
+                    
+                    
+                    #print(kp_data[st - timedelta(1):et + timedelta(1)])
                     data, events_tmp, events_frac_tmp, events_time_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
-                        dst_data[st - timedelta(1):et + timedelta(1)], pdf = pdf, \
+                        dst_data[st - timedelta(1):et + timedelta(1)],\
+                        kp_data[st - timedelta(1):et + timedelta(1)], \
+                        pdf, \
                         csv = csv, livedb = livedb, predict = predict,\
                         smooth_num = 100, dst_thresh = dst_thresh, plotting = plotting,\
                         plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_time/')
+                        plt_outpath = proj_dir + 'longterm_time3/')
                     
                     #increment the evt_index by the number of events already held in events_frac, events_time_frac    
                     if len(events) > 0:
