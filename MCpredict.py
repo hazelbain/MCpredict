@@ -122,6 +122,9 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
 
 
     """   
+    
+    print("begin")
+    
     #running in real_time mode
     if real_time == 1:
         print("todo: real-time data required - determine dates for last 24 hours")
@@ -132,7 +135,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
     #min_duration of at least 120 minutes in order to be considered as an event
     min_duration=180.
     
-    print("pre get data")
+    #print("here0")
 
     #read in mag and solar wind data
     if spacecraft == 'ace':
@@ -140,27 +143,31 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
         #read in ace_mag_1m data
         mag_data = get_data(sdate, edate, view = 'ace_mag_1m', \
                             csv = csv, livedb = livedb)
-
-        print("got mag data")
+        
+        #print("here1")
 
         sw_data = get_data(sdate, edate, view = 'tb_ace_sw_1m', \
                            csv = csv, livedb = livedb)
-        
-        print("got sw data")
+
+        #print("here2")
 
         #convert to pandas DataFrame
         #MAYBE MOVE THIS STEP INTO THE GET DATA FUNCTION!!!!
         mag = pd.DataFrame(data = mag_data, columns = mag_data.dtype.names)
         sw = pd.DataFrame(data = sw_data, columns = sw_data.dtype.names)  
         sw.rename(columns={'dens': 'n', 'speed': 'v', 'temperature':'t'}, inplace=True)
+        
+        #print("here4")
                
     elif spacecraft == 'dscovr':
         print("todo: dscovr data read functions still todo")
     
     #clean data
     mag_clean, sw_clean = clean_data(mag, sw)
-    
-    print("after clean")
+
+
+
+    #print("here5")
     
     #pd.set_option('display.max_rows',100)
     #print(mag_clean.gsm_lat.iloc[0:100])  
@@ -277,9 +284,7 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
 
         if icme_event(istart, iend, len(data['date'])):
             validation_stats, data, resultsdir, istart, iend
-       
-    
-    print("here pre event create")
+
     
     #create new dataframe to record event characteristics
     events, events_frac, events_time_frac = create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh=dst_thresh, predict = predict)   
@@ -370,16 +375,22 @@ def create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh = -80, kp_th
     #get min dst and geoeffective flags
     events = dst_geo_tag(events, dst_data, dst_thresh = dst_thresh, dst_dur_thresh = 2.0)
 
+    print("after dst geo")
+
     #get max kp and kp geoeffective flags
     events = kp_geo_tag(events, kp_data, kp_thresh = kp_thresh)
+
+    print("after kp geo")
 
     #split the event into fractions for bayesian stats
     events_frac, events_time_frac = create_event_frac_dataframe(data, events, evt_indices, frac_type = 'time', t_frac = t_frac)
     
+    print("after event frac create")
+    
     if predict == 1:
         
         #predict geoeffectivenes
-        events_frac = predict_geoeff(events_frac, pdf)
+        events_frac = predict_geoeff(events_time_frac, pdf)
 
     return events, events_frac, events_time_frac
     
@@ -1606,28 +1617,14 @@ def predict_geoeff(events_frac, pdf):
         if events_frac.tau_predicted.iloc[i] > 250:
             continue
         
-        #print(i)
-        #print(events_frac.frac.iloc[i])
-        #print(events_frac.iloc[i])
-        
         #find the plane of probabilities for estimates bzmp and taup
         bzmp_ind[i] = np.max(np.where(pdf['axis_vals'][0] < events_frac.bzm_predicted.iloc[i])[0])
         taup_ind[i] = np.min(np.where(pdf['axis_vals'][1] > events_frac.tau_predicted.iloc[i])[0])
         
-        #print("bzm_pred, axis vals")
-        #print(bzmp_ind[i], taup_ind[i])
-        #print(events_frac.bzm_predicted.iloc[i], pdf["axis_vals"][0][bzmp_ind[i]-1], \
-        #      pdf["axis_vals"][0][bzmp_ind[i]], pdf["axis_vals"][0][bzmp_ind[i]+1])
-        
-        
-        #print("here")
-        #print("max pdf %f", np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,:,:,5]))
-    
 
         #the probability of the event being geoeffective with any value of bzm and tau
         #predict.P1.iloc[i] = pdf['P1_map'][bzmp_ind, taup_ind, events_frac.iloc[i]*5]
-        
-        #print(np.max(pdf['P_bzm_tau_e_bzmp_taup'][:,:,:,:, int(events_frac.frac.iloc[i] * 5)]))
+    
         
         if events_frac.frac_est.iloc[i] < 0.2:
             pdf_frac = 0
@@ -1639,33 +1636,25 @@ def predict_geoeff(events_frac, pdf):
                        [:,:,bzmp_ind[i], taup_ind[i], pdf_frac], \
                        pdf['axis_vals'][1]),\
                        pdf['axis_vals'][0])
-        
-        P1_scaled[i] = integrate.simps(integrate.simps((pdf['P_bzm_tau_e_bzmp_taup']\
-                       [:,:,bzmp_ind[i], taup_ind[i], pdf_frac]\
-                       * (1/pdf["P1_map"][:,:,pdf_frac].max())),\
-                       pdf['axis_vals'][1]),\
-                       pdf['axis_vals'][0])
-        
-        #print("P1 ")
-        #print(P1[i])
-    
-        #the probability of the event have actual values bzmp +/- 5 nT and taup +/- 4 hours
-        bzmp_ind_low = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] - 6.12))[0])
-        bzmp_ind_high = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] + 6.12))[0])
-        
-        taup_ind_low = np.min(np.where(pdf['axis_vals'][1] > (events_frac.tau_predicted.iloc[i] - 5.0))[0])
-        taup_ind_high = np.min(np.where(pdf['axis_vals'][1] > (events_frac.tau_predicted.iloc[i] + 5.0))[0])
-        
-        #print("P2")
-        #print(bzmp_ind_low, bzmp_ind_high, taup_ind_low, taup_ind_high)
 
+        #bzm and tau bin sizes
+        dbzm = pdf['axis_vals'][0][1] - pdf['axis_vals'][0][0]
+        dtau = pdf['axis_vals'][1][1] - pdf['axis_vals'][1][0]
+        
+        
+        #the probability of the event have actual values bzmp +/- 5 nT and taup +/- 4 hours
+        bzmp_ind_low = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] - dbzm))[0])
+        bzmp_ind_high = np.max(np.where(pdf['axis_vals'][0] < (events_frac.bzm_predicted.iloc[i] + dbzm))[0])
+        
+        taup_ind_low = np.min(np.where(pdf['axis_vals'][1] > (events_frac.tau_predicted.iloc[i] - dtau))[0])
+        taup_ind_high = np.min(np.where(pdf['axis_vals'][1] > (events_frac.tau_predicted.iloc[i] + dtau))[0])
+        
         P2[i] = integrate.simps(integrate.simps(pdf['P_bzm_tau_e_bzmp_taup']\
                        [bzmp_ind_low:bzmp_ind_high+1, taup_ind_low:taup_ind_high+1, bzmp_ind[i], taup_ind[i], pdf_frac],\
                        pdf['axis_vals'][1][taup_ind_low:taup_ind_high+1]),\
                        pdf['axis_vals'][0][bzmp_ind_low:bzmp_ind_high+1])
         
-        #print(P2[i])
-        #print("predict2")    
+            
 
         #The most probable values of bzm and tau based on bzmp and taup  
         prob_max_ind = np.where(pdf['P_bzm_tau_e_bzmp_taup'][:,:,bzmp_ind[i], taup_ind[i], pdf_frac] == 
@@ -1693,7 +1682,7 @@ def predict_geoeff(events_frac, pdf):
     events_frac["bzmp_ind"] = bzmp_ind
     events_frac["taup_ind"] = taup_ind
     events_frac["P1"] = P1
-    events_frac["P1_scaled"] = P1_scaled
+    #events_frac["P1_scaled"] = P1_scaled
     events_frac["P2"] = P2
     events_frac["bzm_most_prob"] = bzm_most_prob
     events_frac["tau_most_prob"] = tau_most_prob
