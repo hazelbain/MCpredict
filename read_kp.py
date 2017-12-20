@@ -6,6 +6,7 @@ Created on Mon Oct 16 12:06:07 2017
 """
 import numpy as np
 import pandas as pd
+import platform
 
 from urllib.request import urlopen
 from datetime import datetime
@@ -21,6 +22,9 @@ def read_kp(path = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredi
         path to working directory
     
     """
+    
+    if platform.system() == 'Darwin':
+        path = '/Users/hazelbain/Dropbox/MCpredict/MCpredict/'    
     
     file = 'kp.csv'
     

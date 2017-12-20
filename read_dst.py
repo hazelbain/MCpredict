@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import numpy.lib.recfunctions
+import platform
 
 
 def read_dst_df(path = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/.spyproject/'):
@@ -27,6 +28,9 @@ def read_dst_df(path = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCp
         path to working directory
     
     """
+    
+    if platform.system() == 'Darwin':
+        path = '/Users/hazelbain/Dropbox/MCpredict/MCpredict/'
     
     file = 'Dst_hourly.csv'
     
@@ -51,6 +55,9 @@ def read_dst(tstart, tend, path = 'C:/Users/hazel.bain/Documents/MC_predict/pyMC
         path to working directory
     
     """
+    
+    if platform.system() == 'Darwin':
+        path = '/Users/hazelbain/Dropbox/MCpredict/MCpredict/'
     
     file = 'Dst_hourly.csv'
 

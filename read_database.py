@@ -90,16 +90,11 @@ def get_data(tstart, tend, server = 'swds-st', \
                 file = view + '_' + datetime.strftime(d, "%Y%m%d") + '.csv'
                 data_tmp = read_ace_mag_1m_database_csv(file)
 
-                print("reading mag data" + file)
 
             #elif view == 'ace_swepam_1m':
             elif view == 'tb_ace_sw_1m':   
                 file = view + '_' + datetime.strftime(d, "%Y%m%d") + '.csv'
                 data_tmp = read_ace_swepam_1m_database_csv(file) 
-                
-                print("reading sw data" + file)
-        
-        print("finished reading data")
         
         #concatenate the data files
         if d == dates_to_check[0]:
