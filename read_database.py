@@ -58,49 +58,64 @@ def get_data(tstart, tend, server = 'swds-st', \
     
     #datafile dates to check for
     dates_to_check = [st + timedelta(int(i)) for i in np.arange(0,(et-st).days+1)]
+    
     for d in dates_to_check:
 
         
         #if there is no datafile for that day or livedb is set, get the data from the databacse
         if not os.path.isfile(outpath + '/' + view + '/' + \
-                              view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv') \
-                              or livedb == 1 :      
-                                  
-            t = datetime.strftime(d, "%Y-%m-%d")
+                              view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv'):
             
-            #print("livedb mode or datafile missing for day " + t + ": accessing databasee")
-            data_tmp0 = read_database(t, t, server = server, \
-                                 database = database, view=view, \
-                                 csv=csv, outpath=outpath+ '/' + view + '/')
-
-            #parse the data to format
-            if view == 'ace_mag_1m':
-                data_tmp = parse_ace_mag_1m_db(data_tmp0)
-
-            #elif view == 'ace_swepam_1m':
-            elif view == 'tb_ace_sw_1m':    
-                data_tmp = parse_ace_swepam_1m_db(data_tmp0) 
+            #if livedb is set then go fetch the data
+            if livedb == 1 :      
+                                  
+                t = datetime.strftime(d, "%Y-%m-%d")
+                
+                #print("livedb mode or datafile missing for day " + t + ": accessing databasee")
+                data_tmp0 = read_database(t, t, server = server, \
+                                     database = database, view=view, \
+                                     csv=csv, outpath=outpath+ '/' + view + '/')
+    
+                #parse the data to format
+                if view == 'ace_mag_1m':
+                    data_tmp = parse_ace_mag_1m_db(data_tmp0)
+    
+                #elif view == 'ace_swepam_1m':
+                elif view == 'tb_ace_sw_1m':  
+                    data_tmp = parse_ace_swepam_1m_db(data_tmp0) 
+                    
+            else: 
+                continue
 
 
         #otherwise read the csv file
         else:
             
             if view == 'ace_mag_1m':
-                
+
                 file = view + '_' + datetime.strftime(d, "%Y%m%d") + '.csv'
-                data_tmp = read_ace_mag_1m_database_csv(file)
+                if os.path.isfile(outpath + '/' + view + '/' + \
+                              view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv'):
+                    data_tmp = read_ace_mag_1m_database_csv(file)
+
 
 
             #elif view == 'ace_swepam_1m':
             elif view == 'tb_ace_sw_1m':   
+
                 file = view + '_' + datetime.strftime(d, "%Y%m%d") + '.csv'
-                data_tmp = read_ace_swepam_1m_database_csv(file) 
-        
+                if os.path.isfile(outpath + '/' + view + '/' + \
+                              view + '_' + datetime.strftime(d, '%Y%m%d') + '.csv'):
+                    data_tmp = read_ace_swepam_1m_database_csv(file) 
+
+
         #concatenate the data files
-        if d == dates_to_check[0]:
-            data = data_tmp
-        else:
-            data = np.hstack((data,data_tmp))                
+        if 'data_tmp' in locals() :
+            if 'data' not in locals(): 
+                data = data_tmp
+                del(data_tmp)
+            else:
+                data = np.hstack((data,data_tmp))                
             
 #==============================================================================
 #     #datafile dates to check for
@@ -191,6 +206,8 @@ def read_database(tstart, tend, server = 'swds-st', \
 
     #return all rows from search
     all_rows = cursor.fetchall()
+    
+    ## TODO: need to add in line to decide what to do if there is data missing from the database
     
     #close connection to the database    
     cnxn.close

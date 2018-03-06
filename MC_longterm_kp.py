@@ -21,12 +21,14 @@ Created on Thu Feb 16 12:05:15 2017
 import MCpredict as MC
 import read_dst as dst
 import read_kp as kp
+import Richardson_ICME_list as icme
 
 import numpy as np
 import pandas as pd
 from datetime import timedelta, datetime
 import calendar
 import pickle as pickle
+import platform
 
 import MC_predict_pdfs as mcp
 import MC_predict_plots as mcplt
@@ -59,6 +61,7 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
             
             return events, events_frac, events_time_frac
             
+
         events_frac.tau_predicted.iloc[np.where((events_frac.frac == 0.0) & (events_frac.tau_predicted == np.inf))] = 0.0
         events_frac.drop_duplicates(('start','frac'), inplace = True)
         
@@ -113,12 +116,18 @@ def train_and_validate(fname='', train_fname='', valid_fname='', \
     
 
 
-def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80, kp_thresh = 6):
+def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80, kp_thresh = 6, livedb = 0, csv = 0):
 
     #### step 1: gather events to use for the bayseian PDF, uses Chen_MC_prediction without predict keyword
 
-    t1 = ['1-jan-1998','1-jan-1999','1-jan-2000','1-jan-2001','1-jan-2002','1-jan-2003']
-    t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003']
+    t1 = ['1-jan-1998','1-jan-1999','1-jan-2000','1-jan-2001','1-jan-2002','1-jan-2003', '1-jan-2004','1-jan-2005',\
+          '1-jan-2006','1-jan-2007','1-jan-2008','1-jan-2009','1-jan-2010','1-jan-2011','1-jan-2012','1-jan-2013',\
+          '1-jan-2014','1-jan-2015','1-jan-2016','1-jan-2017']
+
+    
+    t2 = ['31-dec-1998','31-dec-1999','31-dec-2000','31-dec-2001','31-dec-2002','31-dec-2003', '31-dec-2004','31-dec-2005',\
+          '31-dec-2006','31-dec-2007','31-dec-2008','31-dec-2009','31-dec-2010','31-dec-2011','31-dec-2012','31-dec-2013', \
+          '31-dec-2014','31-dec-2015','31-dec-2016','31-may-2017']
     
     #t1 = ['7-jan-2000']
     #t2 = ['13-jan-2000']
@@ -129,7 +138,7 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80, kp_thresh = 
     for i in range(len(t1)):
         
         events_tmp, events_frac_tmp, events_time_frac_tmp = find_events(t1[i], t2[i], plotting=1, \
-                    dst_thresh = dst_thresh, kp_thresh = kp_thresh, csv=0, livedb = 1)
+            dst_thresh = dst_thresh, kp_thresh = kp_thresh, csv=csv, livedb = livedb, fname = fname)
         
         #increment the evt_index by the number of events already held in events_frac, events_time_frac
         if len(events) > 0:
@@ -152,13 +161,13 @@ def fit_training_events(fname = '', ew=2, nw=0.5, dst_thresh = -80, kp_thresh = 
     #events.to_csv("train/events_"+fname+"train_kp"+str(abs(kp_thresh))+".csv", sep='\t', encoding='utf-8') 
     #events_frac.to_csv("train/events_frac_"+fname+"train_kp"+str(abs(kp_thresh))+".csv", sep='\t', encoding='utf-8')   
     
-    pickle.dump(events_time_frac_uniq,open("train/events_time_frac_"+fname+"train_kp"+str(abs(kp_thresh))+".p", "wb"))
-    pickle.dump(events_frac_uniq,open("train/events_frac_"+fname+"train_kp"+str(abs(kp_thresh))+".p", "wb"))
-    pickle.dump(events_uniq,open("train/events_"+fname+"train_kp"+str(abs(kp_thresh))+".p", "wb"))
+    pickle.dump(events_time_frac_uniq,open("train/events_time_frac_"+fname+"train_dst"+str(abs(dst_thresh))+"_kp"+str(abs(kp_thresh))+".p", "wb"))
+    pickle.dump(events_frac_uniq,open("train/events_frac_"+fname+"train_dst"+str(abs(dst_thresh))+"_kp"+str(abs(kp_thresh))+".p", "wb"))
+    pickle.dump(events_uniq,open("train/events_"+fname+"train_dst"+str(abs(dst_thresh))+"_kp"+str(abs(kp_thresh))+".p", "wb"))
         
-    mcplt.plot_obs_bz_tau(events_uniq, dd = "train/plots/", fname = fname+"train_kp"+str(abs(kp_thresh)))
-    mcplt.plot_predict_bz_tau_frac(events_frac_uniq, dd = "train/plots/", fname = fname+"train_kp"+str(abs(kp_thresh)))
-    mcplt.plot_obs_vs_predict(events_frac_uniq, dd = "train/plots/", fname = fname+"train_kp"+str(abs(kp_thresh)))
+    mcplt.plot_obs_bz_tau(events_uniq, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh))+"_kp"+str(abs(kp_thresh)))
+    mcplt.plot_predict_bz_tau_frac(events_frac_uniq, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh))+"_kp"+str(abs(kp_thresh)))
+    mcplt.plot_obs_vs_predict(events_frac_uniq, dd = "train/plots/", fname = fname+"train_dst"+str(abs(dst_thresh))+"_kp"+str(abs(kp_thresh)))
     #mcplt.plot_theta(events_frac_uniq, dd = "train/plots/", fname = fname+"train_kp"+str(abs(kp_thresh)))
 
     return events_uniq, events_frac_uniq, events_time_frac_uniq
@@ -348,8 +357,15 @@ def validate_events(events_time_frac_predict, fname='', ew=[2], nw=[0.5, 0.6, 0.
 
 
 def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0, 
-                predict = 0, ew = 2, nw = 1, dst_thresh = -80, kp_thresh = 6, pdf = np.zeros((50,50,50,50))):
+                predict = 0, ew = 2, nw = 1, dst_thresh = -80, kp_thresh = 6,\
+                fname = '', pdf = np.zeros((50,50,50,50))):
 
+    if platform.system() == 'Darwin':
+        proj_dir = '/Users/hazelbain/Dropbox/MCpredict/MCpredict/'
+    else:
+        proj_dir = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/'
+    
+    
     #format times
     start_date = datetime.strptime(start_date, "%d-%b-%Y")
     end_date= datetime.strptime(end_date, "%d-%b-%Y")
@@ -365,6 +381,10 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
         
         #read in the kp data
         kp_data = kp.read_kp()
+
+        #read in Richardson and Cane ICME list 
+        icme_list = icme.read_richardson_icme_list()
+
         
         #get list of week start and end dates - with overlap of one day
         date_list = []
@@ -396,14 +416,24 @@ def find_events(start_date, end_date, plotting = 0, csv = 1, livedb = 0,
                 stf = datetime.strftime(st, "%Y-%m-%d")
                 etf = datetime.strftime(et, "%Y-%m-%d")
                 
-                try:      
+                try:   
+
+                    #start and end of ICME
+                    line1 = list(icme_list.query('plasma_start >="'+stf+'" and plasma_start <= "'+ datetime.strftime(et + timedelta(days = 1), "%Y-%m-%d") +'"')\
+                                [['plasma_start','plasma_end']].values.flatten())
+
+                    #start and end of MC
+                    line2 = list(icme_list.query('mc_start >="'+stf+'" and mc_start <= "'+ datetime.strftime(et + timedelta(days = 1), "%Y-%m-%d") +'"')\
+                                [['mc_start','mc_end']].values.flatten())
+                    
                     data, events_tmp, events_frac_tmp, events_time_frac_tmp = MC.Chen_MC_Prediction(stf, etf, \
                         dst_data[st - timedelta(1):et + timedelta(1)], \
                         kp_data[st - timedelta(1):et + timedelta(1)], \
+                        line = line1, line2=line2,\
                         pdf = pdf, csv = csv, livedb = livedb, predict = predict,\
                         smooth_num = 100, dst_thresh = dst_thresh, kp_thresh = kp_thresh, plotting = plotting,\
                         plt_outfile = 'mcpredict_'+ datetime.strftime(date_list[i][0], "%Y-%m-%d_%H%M") + '.pdf' ,\
-                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/longterm_time3/')
+                        plt_outpath = proj_dir + 'longterm_'+fname[0:-1]+'/')
                     
                     #increment the evt_index by the number of events already held in events_frac, events_time_frac    
                     if len(events) > 0:

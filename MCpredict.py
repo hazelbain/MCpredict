@@ -49,13 +49,13 @@ import pandas as pd
 from datetime import datetime
 from datetime import timedelta
 
-def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
+def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, predict = 0,\
                        smooth_num = 25, resultsdir='', \
                        real_time = 0, spacecraft = 'ace',\
                        csv = 1, livedb = 0,\
                        plotting = 1, plt_outfile = 'mcpredict.pdf',\
                        plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots/',\
-                       line = [], dst_thresh = -80, kp_thresh = 6):
+                       line = [], line2 = [], dst_thresh = -80, kp_thresh = 6):
 
     """
      This function reads in either real time or historical 
@@ -79,8 +79,6 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
          dst hourly data
      kp_data - dataframe
          kp 3 hourly data
-     pdf - data array
-         PDF relating Bzm and tau to Bzm' and tau' - see MC_predict_pdfs.py
      predict - int
          keyword to predict the geoeffectiveness of all events
      smooth_num - int
@@ -123,8 +121,6 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
 
     """   
     
-    print("begin")
-    
     #running in real_time mode
     if real_time == 1:
         print("todo: real-time data required - determine dates for last 24 hours")
@@ -143,21 +139,15 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
         #read in ace_mag_1m data
         mag_data = get_data(sdate, edate, view = 'ace_mag_1m', \
                             csv = csv, livedb = livedb)
-        
-        #print("here1")
 
         sw_data = get_data(sdate, edate, view = 'tb_ace_sw_1m', \
                            csv = csv, livedb = livedb)
-
-        #print("here2")
 
         #convert to pandas DataFrame
         #MAYBE MOVE THIS STEP INTO THE GET DATA FUNCTION!!!!
         mag = pd.DataFrame(data = mag_data, columns = mag_data.dtype.names)
         sw = pd.DataFrame(data = sw_data, columns = sw_data.dtype.names)  
         sw.rename(columns={'dens': 'n', 'speed': 'v', 'temperature':'t'}, inplace=True)
-        
-        #print("here4")
                
     elif spacecraft == 'dscovr':
         print("todo: dscovr data read functions still todo")
@@ -165,34 +155,24 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
     #clean data
     mag_clean, sw_clean = clean_data(mag, sw)
 
-
-
-    #print("here5")
-    
-    #pd.set_option('display.max_rows',100)
-    #print(mag_clean.gsm_lat.iloc[0:100])  
-    #pd.reset_option('display.max_rows')
-    
     #Create stucture to hold smoothed data
     col_names = ['date', 'bx', 'by', 'bz', 'bt', 'theta_z', 'theta_y']        
-    data = pd.concat([mag_clean['date'], \
+    data_mag = pd.concat([mag_clean['date'], \
             pd.Series(mag_clean['gsm_bx']).rolling(window = smooth_num).mean(), \
             pd.Series(mag_clean['gsm_by']).rolling(window = smooth_num).mean(),\
             pd.Series(mag_clean['gsm_bz']).rolling(window = smooth_num).mean(), \
             pd.Series(mag_clean['bt']).rolling(window = smooth_num).mean(),\
             pd.Series(mag_clean['gsm_lat']).rolling(window = smooth_num).mean(), \
             pd.Series(mag_clean['gsm_lon']).rolling(window = smooth_num).mean()], axis=1, keys = col_names)
-          
-    #data['theta_z'] = pd.Series(180.*np.arcsin(mag_clean['gsm_bz']/mag_clean['bt'])/np.pi)\
-    #                    .rolling(window = smooth_num).mean()   #in degrees
-    #data['theta_y'] = pd.Series(180.*np.arcsin(mag_clean['gsm_by']/mag_clean['bt'])/np.pi)\
-    #                    .rolling(window = smooth_num).mean()   #in degrees
-                        
-    #data['theta_z'] = data['theta_z'].interpolate()      
-    #data['theta_y'] = data['theta_y'].interpolate()                    
 
-    data['sw_v'] = pd.Series(sw_clean['v']).rolling(window = smooth_num).mean()
-    data['sw_n'] = pd.Series(sw_clean['n']).rolling(window = smooth_num).mean()    
+        
+    col_names_sw = ['date', 'sw_v', 'sw_n'] 
+    data_sw = pd.concat([sw_clean['date'], \
+        pd.Series(sw_clean['v']).rolling(window = smooth_num).mean(),\
+        pd.Series(sw_clean['n']).rolling(window = smooth_num).mean()], axis=1, keys = col_names_sw )   
+    
+    #merge the mag and sw dataframes
+    data = pd.merge(data_mag, data_sw, how='left', left_on='date', right_on='date')   
 
     #add empty columns for the predicted data values at each step in time
     data['istart_bz'] = 0
@@ -284,22 +264,20 @@ def Chen_MC_Prediction(sdate, edate, dst_data, kp_data, pdf, predict = 0,\
 
         if icme_event(istart, iend, len(data['date'])):
             validation_stats, data, resultsdir, istart, iend
-
     
     #create new dataframe to record event characteristics
-    events, events_frac, events_time_frac = create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh=dst_thresh, predict = predict)   
+    events, events_time_frac = create_event_dataframe(data, dst_data, kp_data, dst_thresh=dst_thresh, predict = predict)   
     
     #plot some stuff   
-    if plotting == 1:
-        
+    if plotting == 1:        
         evt_times = events[['start','end']].values
-        mcpredict_plot(data, events_frac, dst_data, kp_data, line=line, bars = evt_times, plt_outfile = plt_outfile, plt_outpath = plt_outpath)
-    
-    return data, events, events_frac, events_time_frac
+        mcpredict_plot(data, events, events_time_frac, dst_data, kp_data, line=line, line2=line2, bars = evt_times, plt_outfile = plt_outfile, plt_outpath = plt_outpath)
+
+    return data, events, events_time_frac
 
 
 
-def create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh = -80, kp_thresh = 6, t_frac = 5, predict = 0):
+def create_event_dataframe(data, dst_data, kp_data, dst_thresh = -80, kp_thresh = 6, t_frac = 5, predict = 0):
 
     """
     Create two dataframes containing the characteristics for 
@@ -317,8 +295,6 @@ def create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh = -80, kp_th
     kp_data - dataframe
         contains 3 hourly kp data to use as a classifier to determine whether the
         event is geoeffective or non geoeffective and recored the max/min value        
-    pdf - data array
-        [bzm, tau, bzm_p, tau_p, frac] P(bzm, tau | (bzm_p, tau_p), f)
     t_frac - int
         number of fractions to split an event into - using 5 for development 
         purposes but should be larger
@@ -375,72 +351,67 @@ def create_event_dataframe(data, dst_data, kp_data, pdf, dst_thresh = -80, kp_th
     #get min dst and geoeffective flags
     events = dst_geo_tag(events, dst_data, dst_thresh = dst_thresh, dst_dur_thresh = 2.0)
 
-    print("after dst geo")
-
     #get max kp and kp geoeffective flags
     events = kp_geo_tag(events, kp_data, kp_thresh = kp_thresh)
 
-    print("after kp geo")
-
     #split the event into fractions for bayesian stats
-    events_frac, events_time_frac = create_event_frac_dataframe(data, events, evt_indices, frac_type = 'time', t_frac = t_frac)
+    events_time_frac = create_event_frac_dataframe(data, events, evt_indices, frac_type = 'time', t_frac = t_frac)
     
-    print("after event frac create")
-    
-    if predict == 1:
-        
+    #if predict == 1:
         #predict geoeffectivenes
-        events_frac = predict_geoeff(events_time_frac, pdf)
+        #events_frac = predict_geoeff(events_time_frac, pdf)
 
-    return events, events_frac, events_time_frac
+    return events, events_time_frac
     
 
 def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t_frac = 5):
     
-    ###create a dataframe containing info for every frac of an event
-    repeat = t_frac+1    
-    events_frac = events.loc[np.repeat(events.index.values, repeat)]
-    events_frac.reset_index(inplace=True)
-
-    #remame the column headers to keep track of things
-    events_frac.rename(columns={'level_0':'evt_index', 'index':'data_index'}, inplace=True)
-    
-    frac = pd.DataFrame({'frac':np.tile(np.arange(t_frac+1)*(100/t_frac/100), len(events)),\
-                            'frac_start':0.0,\
-                            'frac_end':0.0,\
-                            'frac_est':0.0,\
-                            'bzm_predicted':0.0,\
-                            'tau_predicted':0.0,\
-                            'bym_predicted':0.0,\
-                            'tau_predicted_y':0.0,\
-                            'i_bzmax':0})
-    
-    events_frac = pd.concat([events_frac, frac], axis = 1) 
-    
-    ##bzm at each fraction of an event    
-    for i in range(len(evt_indices)):
-        
-        frac_ind = evt_indices[i,0] + (np.arange(t_frac+1)*(100/t_frac/100) * \
-                    float(evt_indices[i,1]-evt_indices[i,0])).astype(int)
-        dfrac = frac_ind[1]-frac_ind[0]
-        
-        #start and end times of each fraction of an event
-        events_frac['frac_start'].iloc[np.where(events_frac['evt_index'] == i)] = data['date'].iloc[frac_ind].values
-        frac_ind_end = frac_ind + dfrac
-        if (frac_ind[-1]+dfrac) >= len(data['date']):           
-            frac_ind_end[-1] = len(data['date'])-1
-        events_frac['frac_end'].iloc[np.where(events_frac['evt_index'] == i)] = data['date'].iloc[frac_ind_end].values
-        
-        events_frac['frac_est'].iloc[np.where(events_frac['evt_index'] == i)] = data['frac_est'].iloc[frac_ind].values
-
-        #predicted bzm, bym ,tau_y and tau_z
-        events_frac['bzm_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bzm_predicted'].iloc[frac_ind].values
-        events_frac['tau_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted'].iloc[frac_ind].values
-        events_frac['i_bzmax'].iloc[np.where(events_frac['evt_index'] == i)] = data['i_bzmax'].iloc[frac_ind].values
-        
-        events_frac['bym_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bym_predicted'].iloc[frac_ind].values
-        events_frac['tau_predicted_y'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[frac_ind].values
-    
+#==============================================================================
+#     ###create a dataframe containing info for every frac of an event
+#     repeat = t_frac+1    
+#     events_frac = events.loc[np.repeat(events.index.values, repeat)]
+#     events_frac.reset_index(inplace=True)
+# 
+#     #remame the column headers to keep track of things
+#     events_frac.rename(columns={'level_0':'evt_index', 'index':'data_index'}, inplace=True)
+#     
+#     frac = pd.DataFrame({'frac':np.tile(np.arange(t_frac+1)*(100/t_frac/100), len(events)),\
+#                             'frac_start':0.0,\
+#                             'frac_end':0.0,\
+#                             'frac_est':0.0,\
+#                             'bzm_predicted':0.0,\
+#                             'tau_predicted':0.0,\
+#                             'bym_predicted':0.0,\
+#                             'tau_predicted_y':0.0,\
+#                             'i_bzmax':0})
+#     
+#     events_frac = pd.concat([events_frac, frac], axis = 1) 
+#     
+#     ##bzm at each fraction of an event    
+#     for i in range(len(evt_indices)):
+#         
+#         frac_ind = evt_indices[i,0] + (np.arange(t_frac+1)*(100/t_frac/100) * \
+#                     float(evt_indices[i,1]-evt_indices[i,0])).astype(int)
+#         dfrac = frac_ind[1]-frac_ind[0]
+#         
+#         #start and end times of each fraction of an event
+#         events_frac['frac_start'].iloc[np.where(events_frac['evt_index'] == i)] = data['date'].iloc[frac_ind].values
+#         frac_ind_end = frac_ind + dfrac
+#         if (frac_ind[-1]+dfrac) >= len(data['date']):           
+#             frac_ind_end[-1] = len(data['date'])-1
+#         events_frac['frac_end'].iloc[np.where(events_frac['evt_index'] == i)] = data['date'].iloc[frac_ind_end].values
+#         
+#         events_frac['frac_est'].iloc[np.where(events_frac['evt_index'] == i)] = data['frac_est'].iloc[frac_ind].values
+# 
+#         #predicted bzm, bym ,tau_y and tau_z
+#         events_frac['bzm_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bzm_predicted'].iloc[frac_ind].values
+#         events_frac['tau_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted'].iloc[frac_ind].values
+#         events_frac['i_bzmax'].iloc[np.where(events_frac['evt_index'] == i)] = data['i_bzmax'].iloc[frac_ind].values
+#         
+#         events_frac['bym_predicted'].iloc[np.where(events_frac['evt_index'] == i)] = data['bym_predicted'].iloc[frac_ind].values
+#         events_frac['tau_predicted_y'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[frac_ind].values
+#     
+#==============================================================================
 #==============================================================================
 #     ##bym at each fraction of the Bz event    
 #     for i in range(len(evt_indices_by)):
@@ -510,9 +481,10 @@ def create_event_frac_dataframe(data, events, evt_indices, frac_type = 'frac', t
 #         events_frac['tau_predicted_y'].iloc[np.where(events_frac['evt_index'] == i)] = data['tau_predicted_y'].iloc[frac_ind].values
 #==============================================================================
 
-    return events_frac, events_time_frac
+    #return events_frac, events_time_frac
+    return events_time_frac
     
-def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], plot_fit = 1, dst_thresh = -80, kp_thresh = 6, \
+def mcpredict_plot(data, events, events_time_frac, dst_data, kp_data, line= [], line2=[], bars = [], plot_fit = 1, dst_thresh = -80, kp_thresh = 6, \
             plt_outpath = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/richardson_mcpredict_plots_2/',\
             plt_outfile = 'mcpredict.pdf'):
     
@@ -544,25 +516,18 @@ def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], pl
     
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
-    from matplotlib.patches import Rectangle
     from matplotlib.font_manager import FontProperties
     from matplotlib.dates import DayLocator
     from matplotlib.dates import HourLocator
     from matplotlib.dates import DateFormatter
-            
-    #start and end times for plot to make sure all plots are consistent
-    #st = datetime.strptime(data['date'][0]), "%Y-%m-%d")
-    #et = datetime.strptime(data['date'][-1], "%Y-%m-%d")
+    from matplotlib.ticker import MultipleLocator
 
     st = data['date'][0]
     et = data['date'].iloc[-1]
     
-    #read in the dst data
-    #dst_data = dst.read_dst(str(st), str(et))
-
     #plot the ace data
-    f, (ax0, ax1, ax1b, ax1c, ax2, ax3, ax3b, ax4, ax5, ax7, ax8) = plt.subplots(11, figsize=(11,15))
- 
+    f, (ax0, ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(7, figsize=(12,10))
+    
     plt.subplots_adjust(hspace = .1)       # no vertical space between subplots
     fontP = FontProperties()                #legend
     fontP.set_size('medium')
@@ -571,291 +536,148 @@ def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], pl
     hoursLoc = HourLocator()
     daysLoc = DayLocator()
     
+    minorLocator = MultipleLocator(1)
+    
+    
+    
     color = {0.0:'green', 1.0:'red', 2.0:'grey',3.0:'orange'}
-    fitcolor = {0.2:'purple', 0.4:'blue', events_frac.frac.iloc[3]:'green',0.8:'orange', 1.0:'red'}
-  
-    #----By
-    ax0.plot(data['date'], data['by'], label='By (nT)')
+    fitcolor = {0.2:'purple', 0.4:'blue', 0.6:'green',0.8:'orange', 1.0:'red'}
+
+    #----Bx
+    ax0.plot(data['date'], data['bx'], label='Bx (nT)')
     ax0.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax0.set_xticklabels(' ')
     ax0.xaxis.set_major_locator(daysLoc)
     ax0.xaxis.set_minor_locator(hoursLoc)
     ax0.set_xlim([st, et])
+    ax0.yaxis.set_minor_locator(minorLocator)
     for l in line:
         ax0.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for l2 in line2:
+        ax0.axvline(x=l2, linewidth=2, linestyle=':', color='red')
     for b in range(len(bars)):
-        ax0.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15)        
+        ax0.axvspan(bars[b,0], bars[b,1], facecolor=color[events['geoeff'].iloc[b]], alpha=0.15)        
     leg = ax0.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
-
-#==============================================================================
-#     #plot the position of max bz
-#     for i in np.arange(5, len(events_frac), 6):
-#         if (events_frac['geoeff'].iloc[i] == 1.0):
-#             wmax_by = np.where( data['by'].iloc[events_frac['istart_by'].iloc[i] : events_frac['iend_by'].iloc[i]] == events_frac['bym'].iloc[i])[0]
-# 
-#             print(events_frac['istart_by'].iloc[i] + wmax_by)
-# 
-#             ax0.axvline(x=data['date'].iloc[events_frac['istart_by'].iloc[i] + wmax_by].values[0], \
-#                      linewidth=1, linestyle='--', color='grey')
-# 
-#==============================================================================
-    #max bz line
-    for b in range(len(bars)):
-        if events_frac['geoeff'].iloc[b*6] == 1.0:
-            ax0.hlines(events_frac['bym'].iloc[b*6], bars[b,0], bars[b,1], linestyle='-',color='grey')
-
     
-    #plot the fitted profile at certain intervals through the event  
-    if plot_fit == 1:
-        for i in range(len(events_frac)):
-            
-            #only plot the fits for the geoeffective events
-            if (events_frac['geoeff'].iloc[i] == 1.0) & (events_frac['frac'].iloc[i] >0.1) & (events_frac['evt_index'].iloc[i] == 5):
-                 
-                #for each fraction of an event, determine the current fit to the profile up to this point
-                pred_dur = events_frac['tau_predicted_y'].iloc[i] * 60.
-                fit_times = [ events_frac['start_by'].iloc[i] + timedelta(seconds = j*60) for j in np.arange(pred_dur)]
-                fit_profile = events_frac['bym_predicted'].iloc[i] * np.sin(np.pi*np.arange(0,1,1./(pred_dur)) )          
-                
-                ax0.plot(fit_times, fit_profile, color=fitcolor[events_frac['frac'].iloc[i]])
-        
-    #----Bz
-    ax1.plot(data['date'], data['bz'], label='Bz (nT)')
+    #----By
+    ax1.plot(data['date'], data['by'], label='By (nT)')
     ax1.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax1.set_xticklabels(' ')
     ax1.xaxis.set_major_locator(daysLoc)
     ax1.xaxis.set_minor_locator(hoursLoc)
     ax1.set_xlim([st, et])
+    ax1.yaxis.set_minor_locator(minorLocator)
     for l in line:
         ax1.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for l2 in line2:
+        ax1.axvline(x=l2, linewidth=2, linestyle=':', color='red')
     for b in range(len(bars)):
-        ax1.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+        ax1.axvspan(bars[b,0], bars[b,1], facecolor=color[events['geoeff'].iloc[b]], alpha=0.15)        
     leg = ax1.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
-    
-    #plot the position of max bz
-    for i in np.arange(5, len(events_frac), 6):
-        if (events_frac['geoeff'].iloc[i] == 1.0):
-            wmax_bz = np.where( data['bz'].iloc[events_frac['istart_bz'].iloc[i] : events_frac['iend_bz'].iloc[i]] == events_frac['bzm'].iloc[i])[0]
 
-            ax1.axvline(x=data['date'].iloc[events_frac['istart_bz'].iloc[i] + wmax_bz].values[0], \
-                     linewidth=1, linestyle='--', color='grey')
-
-    #max bz line
-    for b in range(len(bars)):
-        if events_frac['geoeff'].iloc[b*6] == 1.0:
-            ax1.hlines(events_frac['bzm'].iloc[b*6], bars[b,0], bars[b,1], linestyle='-',color='grey')
-
-    #plot the fitted profile at certain intervals through the event  
-    if plot_fit == 1:
-        for i in range(len(events_frac)): 
-            #only plot the fits for the geoeffective events
-            if (events_frac['geoeff'].iloc[i] == 1.0) & (events_frac['frac'].iloc[i] >0.1):
-                 
-                #for each fraction of an event, determine the current fit to the profile up to this point
-                pred_dur = events_frac['tau_predicted'].iloc[i] * 60.
-                fit_times = [ events_frac['start'].iloc[i] + timedelta(seconds = j*60) for j in np.arange(pred_dur)]
-                fit_profile = events_frac['bzm_predicted'].iloc[i] * np.sin(np.pi*np.arange(0,1,1./(pred_dur)) )          
-                
-                ax1.plot(fit_times, fit_profile, color=fitcolor[events_frac['frac'].iloc[i]])    
-
-
-    #----theta_y
-    ax1b.plot(data['date'], data['theta_y'], label='theta_y')
-    ax1b.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
-    ax1b.set_xticklabels(' ')
-    ax1b.xaxis.set_major_locator(daysLoc)
-    ax1b.xaxis.set_minor_locator(hoursLoc)
-    ax1b.set_xlim([st, et])
-    for l in line:
-        ax1b.axvline(x=l, linewidth=2, linestyle='--', color='black')
-    for b in range(len(bars)):
-        ax1b.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-    leg = ax1b.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-    leg.get_frame().set_alpha(0.5)
-
-
-    #----theta_z
-    ax1c.plot(data['date'], data['theta_z'], label='theta_z')
-    ax1c.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
-    ax1c.set_xticklabels(' ')
-    ax1c.xaxis.set_major_locator(daysLoc)
-    ax1c.xaxis.set_minor_locator(hoursLoc)
-    ax1c.set_xlim([st, et])
-    for l in line:
-        ax1c.axvline(x=l, linewidth=2, linestyle='--', color='black')
-    for b in range(len(bars)):
-        ax1c.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-    leg = ax1c.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-    leg.get_frame().set_alpha(0.5)
-    
-    #plot the position of max theta
-    for i in np.arange(5, len(events_frac), 6):
-        if (events_frac['geoeff'].iloc[i] == 1.0):
-            
-            wmax_th = np.where( data['theta_z'].iloc[events_frac['istart_bz'].iloc[i] : events_frac['iend_bz'].iloc[i]] == events_frac['theta_z_max'].iloc[i])[0]
-            
-            ax1c.axvline(x=data['date'].iloc[events_frac['istart_bz'].iloc[i] + wmax_th].values[0], \
-                     linewidth=1, linestyle='--', color='grey')
-    
-
-
-    #dtheta_z        
-    ax2.plot(data['date'], data['dtheta_z'], label='dtheta_z deg/min')
+    #----Bz
+    ax2.plot(data['date'], data['bz'], label='Bz (nT)')
+    ax2.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax2.set_xticklabels(' ')
     ax2.xaxis.set_major_locator(daysLoc)
     ax2.xaxis.set_minor_locator(hoursLoc)
     ax2.set_xlim([st, et])
+    ax2.yaxis.set_minor_locator(minorLocator)
     for l in line:
         ax2.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for l2 in line2:
+        ax2.axvline(x=l2, linewidth=2, linestyle=':', color='red')
     for b in range(len(bars)):
-        ax2.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+        ax2.axvspan(bars[b,0], bars[b,1], facecolor=color[events['geoeff'].iloc[b]], alpha=0.15) 
     leg = ax2.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
     
-    #lambda        
-    ax3.plot(data['date'], data['lambda'], label='lambda')
-    ax3.hlines(1.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
-    ax3.hlines(-1.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+    #plot the position of max bz
+    for i in range(len(bars)):
+        if (events['geoeff'].iloc[i] == 1.0):
+            wmax_bz = np.where( data['bz'].iloc[events['istart_bz'].iloc[i] : events['iend_bz'].iloc[i]] == events['bzm'].iloc[i])[0]
+
+            ax2.axvline(x=data['date'].iloc[events['istart_bz'].iloc[i] + wmax_bz].values[0], \
+                        linewidth=1, linestyle='--', color='grey')
+
+    #max bz line
+    for b in range(len(bars)):
+        if events['geoeff'].iloc[b] == 1.0:
+            ax2.hlines(events['bzm'].iloc[b], bars[b,0], bars[b,1], linestyle='-',color='grey')
+
+    #plot the fitted profile at certain intervals through the event  
+    if plot_fit == 1:
+        for i in range(len(bars)): 
+            #only plot the fits for the geoeffective events
+            if (events['geoeff'].iloc[i] == 1.0):
+                
+                #subset of events_time_frac associated with the current geoeffective event
+                evts_time_frac= events_time_frac.query('start == '+events['start'].iloc[0])
+                
+
+                
+                for j in np.arange(0, len(evts_time_frac), int(len(evts_time_frac)/3)):
+                 
+                    #for each fraction of an event, determine the current fit to the profile up to this point
+                    pred_dur = evts_time_frac['tau_predicted'].iloc[j] * 60.
+                    fit_times = [evts_time_frac['start'].iloc[j] + timedelta(seconds = j*60) for k in np.arange(pred_dur)]
+                    fit_profile = evts_time_frac['bzm_predicted'].iloc[j] * np.sin(np.pi*np.arange(0,1,1./(pred_dur)) )          
+                
+                    ax2.plot(fit_times, fit_profile, color=fitcolor[j])    
+
+    #----density
+    ax3.plot(data['date'], data['sw_n'], label='n ($\mathrm{cm^-3}$)')
     ax3.set_xticklabels(' ')
     ax3.xaxis.set_major_locator(daysLoc)
     ax3.xaxis.set_minor_locator(hoursLoc)
     ax3.set_xlim([st, et])
-    ax3.set_ylim(-3,3)
     for l in line:
         ax3.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for l2 in line2:
+        ax3.axvline(x=l2, linewidth=2, linestyle=':', color='red')
     for b in range(len(bars)):
-        ax3.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+        ax3.axvspan(bars[b,0], bars[b,1], facecolor=color[events['geoeff'].iloc[b]], alpha=0.15) 
     leg = ax3.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
     
-    #frac_est        
-    ax3b.plot(data['date'], data['frac_est'], label='frac_est')
-    ax3b.set_xticklabels(' ')
-    ax3b.xaxis.set_major_locator(daysLoc)
-    ax3b.xaxis.set_minor_locator(hoursLoc)
-    ax3b.set_xlim([st, et])
-    ax3b.set_ylim(0,1.5)
-    for l in line:
-        ax3b.axvline(x=l, linewidth=2, linestyle='--', color='black')
-    for b in range(len(bars)):
-        ax3b.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-    leg = ax3b.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-    leg.get_frame().set_alpha(0.5)
     
-                  
-    #----density
-#==============================================================================
-#     ax2.plot(data['date'], data['sw_n'], label='n ($\mathrm{cm^-3}$)')
-#     ax2.set_xticklabels(' ')
-#     ax2.xaxis.set_major_locator(daysLoc)
-#     ax2.xaxis.set_minor_locator(hoursLoc)
-#     ax2.set_xlim([st, et])
-#     for l in line:
-#         ax2.axvline(x=l, linewidth=2, linestyle='--', color='black')
-#     for b in range(len(bars)):
-#         ax2.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-#     leg = ax2.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-#     leg.get_frame().set_alpha(0.5)
-#==============================================================================
-    
-#==============================================================================
-#     #----velocity
-#     maxv = max(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) + 50
-#     minv =  min(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) - 50
-#     ax3.plot(data['date'], data['sw_v'], label='v ($\mathrm{km s^-1}$)')
-#     ax3.set_ylim(top = maxv, bottom = minv)
-#     ax3.set_xticklabels(' ')
-#     ax3.xaxis.set_major_locator(daysLoc)
-#     ax3.xaxis.set_minor_locator(hoursLoc)
-#     ax3.set_xlim([st, et])
-#     for l in line:
-#         ax3.axvline(x=l, linewidth=2, linestyle='--', color='black')
-#     for b in range(len(bars)):
-#         ax3.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15)       
-#     leg = ax3.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-#     leg.get_frame().set_alpha(0.5)
-#==============================================================================
-    
-    #----predicted and actual duration
-    ax4.plot(data['date'], data['tau_predicted'], label='$\mathrm{\tau predicted (hr)}$', ls='solid',c='b')
-    ax4.plot(data['date'], data['tau_actual'], label='$\mathrm{\tau actual (hr)}$', ls='dotted', c='r')
+    #----velocity
+    maxv = max(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) + 50
+    minv =  min(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) - 50
+    ax4.plot(data['date'], data['sw_v'], label='v ($\mathrm{km s^-1}$)')
+    ax4.set_ylim(top = maxv, bottom = minv)
     ax4.set_xticklabels(' ')
     ax4.xaxis.set_major_locator(daysLoc)
     ax4.xaxis.set_minor_locator(hoursLoc)
     ax4.set_xlim([st, et])
     for l in line:
         ax4.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for l2 in line2:
+        ax4.axvline(x=l2, linewidth=2, linestyle=':', color='red')
     for b in range(len(bars)):
-        ax4.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+        ax4.axvspan(bars[b,0], bars[b,1], facecolor=color[events['geoeff'].iloc[b]], alpha=0.15)       
     leg = ax4.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
-        
-    #----Bz max predicted and actual
-    ax5.plot(data['date'], data['bzm_predicted'], label='Bzm predict (nT)', ls='solid', c='b')
-    ax5.plot(data['date'], data['bzm_actual'], label='Bzm actual (nT)', ls='dotted', c='r')
-    #ax3.hlines(0.0, data['date'][0], data['date'][-1], linestyle='--',color='grey')
+            
+    #----dst
+    ax5.plot(dst_data[st:et].index, dst_data[st:et]['dst'], label='Dst')
+    ax5.hlines(dst_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
     ax5.set_xticklabels(' ')
-    ax5.xaxis.set_major_locator(daysLoc)
-    ax5.xaxis.set_minor_locator(hoursLoc)
     ax5.set_xlim([st, et])
     for l in line:
         ax5.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for l2 in line2:
+        ax5.axvline(x=l2, linewidth=2, linestyle=':', color='red')
     for b in range(len(bars)):
-        ax5.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-    leg = ax5.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-    leg.get_frame().set_alpha(0.5)
-    
-    #----P1    
-#==============================================================================
-#     ax6.plot(events_frac['frac_start'], events_frac['P1_scaled'], linestyle = ' ')
-#     ax6.set_xticklabels(' ')
-#     ax6.xaxis.set_major_locator(daysLoc)
-#     ax6.xaxis.set_minor_locator(hoursLoc)
-#     ax6.set_xlim([st, et])
-#     for l in line:
-#         ax6.axvline(x=l, linewidth=2, linestyle='--', color='black') 
-#     for b in range(len(bars)):
-#         ax6.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-#     leg = ax6.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
-#     leg.get_frame().set_alpha(0.5)
-#     ylim = ax6.get_ylim()
-#     for i in range(len(events_frac)):
-#         x0 = mdates.date2num(events_frac['frac_start'].iloc[i])
-#         x1 = mdates.date2num(events_frac['frac_end'].iloc[i]) 
-#         width = (x0-x1)
-#         y1 = events_frac['P1_scaled'].iloc[i]/ylim[1]
-#         if events_frac['P1_scaled'].iloc[i] > 0.2:
-#             barcolor = 'red'
-#         else:
-#             barcolor = 'green'
-#         rect = Rectangle((x0 - (width/2.0), 0), width, events_frac['P1_scaled'].iloc[i], color=barcolor)
-#         ax6.add_patch(rect)
-#         #df = (events_frac['frac_end'].iloc[i] - events_frac['frac_start'].iloc[i]) / 2.
-#         #ax6.hlines(events_frac['P1_scaled'].iloc[i], events_frac['frac_start'].iloc[i]-df, events_frac['frac_end'].iloc[i]-df)
-#==============================================================================
-        
-    #----dst
-    ax7.plot(dst_data[st:et].index, dst_data[st:et]['dst'], label='Dst')
-    ax7.hlines(dst_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
-    ax7.set_xticklabels(' ')
-    #ax7.xaxis.set_major_formatter(dateFmt)
-    #ax7.xaxis.set_major_locator(daysLoc)
-    #ax7.xaxis.set_minor_locator(hoursLoc)
-    ax7.set_xlim([st, et])
-    for l in line:
-        ax7.axvline(x=l, linewidth=2, linestyle='--', color='black')
-    for b in range(len(bars)):
-        ax7.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['dstgeoeff'].iloc[b*6]], alpha=0.15) 
+        ax5.axvspan(bars[b,0], bars[b,1], facecolor=color[events['dstgeoeff'].iloc[b]], alpha=0.15) 
     #ax7.set_xlabel("Start Time "+ str(st)+" (UTC)")
-    leg = ax7.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+    leg = ax5.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
     
     
     #--- plot kp
-    
-    #ax8.plot(kp_data[st:et].index, kp_data[st:et]['kp'], label='Kp')
     x0 = mdates.date2num(kp_data.index[0])
     x1 = mdates.date2num(kp_data.index[1])
     y=kp_data.kp.iloc[0]
@@ -866,7 +688,7 @@ def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], pl
         barcolor = 'orange'
     elif y >= 5.0:
         barcolor = 'red'
-    ax8.bar(x0, y, width = w, color = barcolor, edgecolor='black', align = 'edge', label='Kp')
+    ax6.bar(x0, y, width = w, color = barcolor, edgecolor='black', align = 'edge', label='Kp')
 
     for i in range(len(kp_data)-1):
         x0 = mdates.date2num(kp_data.index[i])
@@ -879,41 +701,382 @@ def mcpredict_plot(data, events_frac, dst_data, kp_data, line= [], bars = [], pl
             barcolor = 'orange'
         elif y >= 5.0:
             barcolor = 'red'
-        ax8.bar(x0, y, width = w, color = barcolor, edgecolor='black', align = 'edge')
+        ax6.bar(x0, y, width = w, color = barcolor, edgecolor='black', align = 'edge')
 
-    ax8.hlines(kp_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
-    ax8.set_xticklabels(' ')
-    ax8.xaxis.set_major_formatter(dateFmt)
-    ax8.xaxis.set_major_locator(daysLoc)
-    ax8.xaxis.set_minor_locator(hoursLoc)
-    ax8.set_xlim([st, et])
-    ax8.set_ylim(0,10)
+    ax6.hlines(kp_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+    ax6.set_xticklabels(' ')
+    ax6.xaxis.set_major_formatter(dateFmt)
+    ax6.xaxis.set_major_locator(daysLoc)
+    ax6.xaxis.set_minor_locator(hoursLoc)
+    ax6.set_xlim([st, et])
+    ax6.set_ylim(0,10)
     for l in line:
-        ax8.axvline(x=l, linewidth=2, linestyle='--', color='black')
+        ax6.axvline(x=l, linewidth=2, linestyle='--', color='black')
+    for l2 in line2:
+        ax6.axvline(x=l2, linewidth=2, linestyle=':', color='red')
     for b in range(len(bars)):
-        ax8.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
-    ax8.set_xlabel("Start Time "+ str(st)+" (UTC)")
-    leg = ax8.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+        ax6.axvspan(bars[b,0], bars[b,1], facecolor=color[events['geoeff'].iloc[b]], alpha=0.15) 
+    ax6.set_xlabel("Start Time "+ str(st)+" (UTC)")
+    leg = ax6.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)        
-        
-        
-        #x0 = mdates.date2num(kp_data.index[i])
+
+
 #==============================================================================
-#         x1 = mdates.date2num(kp_data.index[i+1]) 
-#         width = (x1-x0)
-#         y = kp_data.kp.iloc[i]
+#     #plot the ace data
+#     f, (ax0, ax1, ax1b, ax1c, ax2, ax3, ax3b, ax4, ax5, ax7, ax8) = plt.subplots(11, figsize=(11,15))
+#  
+#     plt.subplots_adjust(hspace = .1)       # no vertical space between subplots
+#     fontP = FontProperties()                #legend
+#     fontP.set_size('medium')
+#     
+#     dateFmt = DateFormatter('%d-%b')
+#     hoursLoc = HourLocator()
+#     daysLoc = DayLocator()
+#     
+#     color = {0.0:'green', 1.0:'red', 2.0:'grey',3.0:'orange'}
+#     fitcolor = {0.2:'purple', 0.4:'blue', events_frac.frac.iloc[3]:'green',0.8:'orange', 1.0:'red'}
+#   
+#     #----By
+#     ax0.plot(data['date'], data['by'], label='By (nT)')
+#     ax0.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax0.set_xticklabels(' ')
+#     ax0.xaxis.set_major_locator(daysLoc)
+#     ax0.xaxis.set_minor_locator(hoursLoc)
+#     ax0.set_xlim([st, et])
+#     for l in line:
+#         ax0.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax0.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15)        
+#     leg = ax0.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+# 
+# #==============================================================================
+# #     #plot the position of max bz
+# #     for i in np.arange(5, len(events_frac), 6):
+# #         if (events_frac['geoeff'].iloc[i] == 1.0):
+# #             wmax_by = np.where( data['by'].iloc[events_frac['istart_by'].iloc[i] : events_frac['iend_by'].iloc[i]] == events_frac['bym'].iloc[i])[0]
+# # 
+# #             print(events_frac['istart_by'].iloc[i] + wmax_by)
+# # 
+# #             ax0.axvline(x=data['date'].iloc[events_frac['istart_by'].iloc[i] + wmax_by].values[0], \
+# #                      linewidth=1, linestyle='--', color='grey')
+# # 
+# #==============================================================================
+#     #max bz line
+#     for b in range(len(bars)):
+#         if events_frac['geoeff'].iloc[b*6] == 1.0:
+#             ax0.hlines(events_frac['bym'].iloc[b*6], bars[b,0], bars[b,1], linestyle='-',color='grey')
+# 
+#     
+#     #plot the fitted profile at certain intervals through the event  
+#     if plot_fit == 1:
+#         for i in range(len(events_frac)):
+#             
+#             #only plot the fits for the geoeffective events
+#             if (events_frac['geoeff'].iloc[i] == 1.0) & (events_frac['frac'].iloc[i] >0.1) & (events_frac['evt_index'].iloc[i] == 5):
+#                  
+#                 #for each fraction of an event, determine the current fit to the profile up to this point
+#                 pred_dur = events_frac['tau_predicted_y'].iloc[i] * 60.
+#                 fit_times = [ events_frac['start_by'].iloc[i] + timedelta(seconds = j*60) for j in np.arange(pred_dur)]
+#                 fit_profile = events_frac['bym_predicted'].iloc[i] * np.sin(np.pi*np.arange(0,1,1./(pred_dur)) )          
+#                 
+#                 ax0.plot(fit_times, fit_profile, color=fitcolor[events_frac['frac'].iloc[i]])
 #         
-#         #print(kp_data.index.iloc[i])
-#         #print(x0,x1,y)
+#     #----Bz
+#     ax1.plot(data['date'], data['bz'], label='Bz (nT)')
+#     ax1.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax1.set_xticklabels(' ')
+#     ax1.xaxis.set_major_locator(daysLoc)
+#     ax1.xaxis.set_minor_locator(hoursLoc)
+#     ax1.set_xlim([st, et])
+#     for l in line:
+#         ax1.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax1.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax1.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#     
+#     #plot the position of max bz
+#     for i in np.arange(5, len(events_frac), 6):
+#         if (events_frac['geoeff'].iloc[i] == 1.0):
+#             wmax_bz = np.where( data['bz'].iloc[events_frac['istart_bz'].iloc[i] : events_frac['iend_bz'].iloc[i]] == events_frac['bzm'].iloc[i])[0]
+# 
+#             ax1.axvline(x=data['date'].iloc[events_frac['istart_bz'].iloc[i] + wmax_bz].values[0], \
+#                      linewidth=1, linestyle='--', color='grey')
+# 
+#     #max bz line
+#     for b in range(len(bars)):
+#         if events_frac['geoeff'].iloc[b*6] == 1.0:
+#             ax1.hlines(events_frac['bzm'].iloc[b*6], bars[b,0], bars[b,1], linestyle='-',color='grey')
+# 
+#     #plot the fitted profile at certain intervals through the event  
+#     if plot_fit == 1:
+#         for i in range(len(events_frac)): 
+#             #only plot the fits for the geoeffective events
+#             if (events_frac['geoeff'].iloc[i] == 1.0) & (events_frac['frac'].iloc[i] >0.1):
+#                  
+#                 #for each fraction of an event, determine the current fit to the profile up to this point
+#                 pred_dur = events_frac['tau_predicted'].iloc[i] * 60.
+#                 fit_times = [ events_frac['start'].iloc[i] + timedelta(seconds = j*60) for j in np.arange(pred_dur)]
+#                 fit_profile = events_frac['bzm_predicted'].iloc[i] * np.sin(np.pi*np.arange(0,1,1./(pred_dur)) )          
+#                 
+#                 ax1.plot(fit_times, fit_profile, color=fitcolor[events_frac['frac'].iloc[i]])    
+# 
+# 
+#     #----theta_y
+#     ax1b.plot(data['date'], data['theta_y'], label='theta_y')
+#     ax1b.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax1b.set_xticklabels(' ')
+#     ax1b.xaxis.set_major_locator(daysLoc)
+#     ax1b.xaxis.set_minor_locator(hoursLoc)
+#     ax1b.set_xlim([st, et])
+#     for l in line:
+#         ax1b.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax1b.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax1b.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+# 
+# 
+#     #----theta_z
+#     ax1c.plot(data['date'], data['theta_z'], label='theta_z')
+#     ax1c.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax1c.set_xticklabels(' ')
+#     ax1c.xaxis.set_major_locator(daysLoc)
+#     ax1c.xaxis.set_minor_locator(hoursLoc)
+#     ax1c.set_xlim([st, et])
+#     for l in line:
+#         ax1c.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax1c.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax1c.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#     
+#     #plot the position of max theta
+#     for i in np.arange(5, len(events_frac), 6):
+#         if (events_frac['geoeff'].iloc[i] == 1.0):
+#             
+#             wmax_th = np.where( data['theta_z'].iloc[events_frac['istart_bz'].iloc[i] : events_frac['iend_bz'].iloc[i]] == events_frac['theta_z_max'].iloc[i])[0]
+#             
+#             ax1c.axvline(x=data['date'].iloc[events_frac['istart_bz'].iloc[i] + wmax_th].values[0], \
+#                      linewidth=1, linestyle='--', color='grey')
+#     
+# 
+# 
+#     #dtheta_z        
+#     ax2.plot(data['date'], data['dtheta_z'], label='dtheta_z deg/min')
+#     ax2.set_xticklabels(' ')
+#     ax2.xaxis.set_major_locator(daysLoc)
+#     ax2.xaxis.set_minor_locator(hoursLoc)
+#     ax2.set_xlim([st, et])
+#     for l in line:
+#         ax2.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax2.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax2.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#     
+#     #lambda        
+#     ax3.plot(data['date'], data['lambda'], label='lambda')
+#     ax3.hlines(1.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax3.hlines(-1.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax3.set_xticklabels(' ')
+#     ax3.xaxis.set_major_locator(daysLoc)
+#     ax3.xaxis.set_minor_locator(hoursLoc)
+#     ax3.set_xlim([st, et])
+#     ax3.set_ylim(-3,3)
+#     for l in line:
+#         ax3.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax3.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax3.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#     
+#     #frac_est        
+#     ax3b.plot(data['date'], data['frac_est'], label='frac_est')
+#     ax3b.set_xticklabels(' ')
+#     ax3b.xaxis.set_major_locator(daysLoc)
+#     ax3b.xaxis.set_minor_locator(hoursLoc)
+#     ax3b.set_xlim([st, et])
+#     ax3b.set_ylim(0,1.5)
+#     for l in line:
+#         ax3b.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax3b.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax3b.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#     
+#                   
+#     #----density
+# #==============================================================================
+# #     ax2.plot(data['date'], data['sw_n'], label='n ($\mathrm{cm^-3}$)')
+# #     ax2.set_xticklabels(' ')
+# #     ax2.xaxis.set_major_locator(daysLoc)
+# #     ax2.xaxis.set_minor_locator(hoursLoc)
+# #     ax2.set_xlim([st, et])
+# #     for l in line:
+# #         ax2.axvline(x=l, linewidth=2, linestyle='--', color='black')
+# #     for b in range(len(bars)):
+# #         ax2.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+# #     leg = ax2.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+# #     leg.get_frame().set_alpha(0.5)
+# #==============================================================================
+#     
+# #==============================================================================
+# #     #----velocity
+# #     maxv = max(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) + 50
+# #     minv =  min(  data['sw_v'].loc[np.where(np.isnan(data['sw_v']) == False )] ) - 50
+# #     ax3.plot(data['date'], data['sw_v'], label='v ($\mathrm{km s^-1}$)')
+# #     ax3.set_ylim(top = maxv, bottom = minv)
+# #     ax3.set_xticklabels(' ')
+# #     ax3.xaxis.set_major_locator(daysLoc)
+# #     ax3.xaxis.set_minor_locator(hoursLoc)
+# #     ax3.set_xlim([st, et])
+# #     for l in line:
+# #         ax3.axvline(x=l, linewidth=2, linestyle='--', color='black')
+# #     for b in range(len(bars)):
+# #         ax3.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15)       
+# #     leg = ax3.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+# #     leg.get_frame().set_alpha(0.5)
+# #==============================================================================
+#     
+#     #----predicted and actual duration
+#     ax4.plot(data['date'], data['tau_predicted'], label='$\mathrm{\tau predicted (hr)}$', ls='solid',c='b')
+#     ax4.plot(data['date'], data['tau_actual'], label='$\mathrm{\tau actual (hr)}$', ls='dotted', c='r')
+#     ax4.set_xticklabels(' ')
+#     ax4.xaxis.set_major_locator(daysLoc)
+#     ax4.xaxis.set_minor_locator(hoursLoc)
+#     ax4.set_xlim([st, et])
+#     for l in line:
+#         ax4.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax4.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax4.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
 #         
+#     #----Bz max predicted and actual
+#     ax5.plot(data['date'], data['bzm_predicted'], label='Bzm predict (nT)', ls='solid', c='b')
+#     ax5.plot(data['date'], data['bzm_actual'], label='Bzm actual (nT)', ls='dotted', c='r')
+#     #ax3.hlines(0.0, data['date'][0], data['date'][-1], linestyle='--',color='grey')
+#     ax5.set_xticklabels(' ')
+#     ax5.xaxis.set_major_locator(daysLoc)
+#     ax5.xaxis.set_minor_locator(hoursLoc)
+#     ax5.set_xlim([st, et])
+#     for l in line:
+#         ax5.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax5.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     leg = ax5.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#     
+#     #----P1    
+# #==============================================================================
+# #     ax6.plot(events_frac['frac_start'], events_frac['P1_scaled'], linestyle = ' ')
+# #     ax6.set_xticklabels(' ')
+# #     ax6.xaxis.set_major_locator(daysLoc)
+# #     ax6.xaxis.set_minor_locator(hoursLoc)
+# #     ax6.set_xlim([st, et])
+# #     for l in line:
+# #         ax6.axvline(x=l, linewidth=2, linestyle='--', color='black') 
+# #     for b in range(len(bars)):
+# #         ax6.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+# #     leg = ax6.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+# #     leg.get_frame().set_alpha(0.5)
+# #     ylim = ax6.get_ylim()
+# #     for i in range(len(events_frac)):
+# #         x0 = mdates.date2num(events_frac['frac_start'].iloc[i])
+# #         x1 = mdates.date2num(events_frac['frac_end'].iloc[i]) 
+# #         width = (x0-x1)
+# #         y1 = events_frac['P1_scaled'].iloc[i]/ylim[1]
+# #         if events_frac['P1_scaled'].iloc[i] > 0.2:
+# #             barcolor = 'red'
+# #         else:
+# #             barcolor = 'green'
+# #         rect = Rectangle((x0 - (width/2.0), 0), width, events_frac['P1_scaled'].iloc[i], color=barcolor)
+# #         ax6.add_patch(rect)
+# #         #df = (events_frac['frac_end'].iloc[i] - events_frac['frac_start'].iloc[i]) / 2.
+# #         #ax6.hlines(events_frac['P1_scaled'].iloc[i], events_frac['frac_start'].iloc[i]-df, events_frac['frac_end'].iloc[i]-df)
+# #==============================================================================
+#         
+#     #----dst
+#     ax7.plot(dst_data[st:et].index, dst_data[st:et]['dst'], label='Dst')
+#     ax7.hlines(dst_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax7.set_xticklabels(' ')
+#     #ax7.xaxis.set_major_formatter(dateFmt)
+#     #ax7.xaxis.set_major_locator(daysLoc)
+#     #ax7.xaxis.set_minor_locator(hoursLoc)
+#     ax7.set_xlim([st, et])
+#     for l in line:
+#         ax7.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax7.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['dstgeoeff'].iloc[b*6]], alpha=0.15) 
+#     #ax7.set_xlabel("Start Time "+ str(st)+" (UTC)")
+#     leg = ax7.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#     
+#     
+#     #--- plot kp
+#     
+#     #ax8.plot(kp_data[st:et].index, kp_data[st:et]['kp'], label='Kp')
+#     x0 = mdates.date2num(kp_data.index[0])
+#     x1 = mdates.date2num(kp_data.index[1])
+#     y=kp_data.kp.iloc[0]
+#     w=x1-x0 
+#     if y < 4.0:
+#         barcolor = 'green'
+#     elif y >= 4.0 and y < 5.0:
+#         barcolor = 'orange'
+#     elif y >= 5.0:
+#         barcolor = 'red'
+#     ax8.bar(x0, y, width = w, color = barcolor, edgecolor='black', align = 'edge', label='Kp')
+# 
+#     for i in range(len(kp_data)-1):
+#         x0 = mdates.date2num(kp_data.index[i])
+#         x1 = mdates.date2num(kp_data.index[i+1])
+#         y=kp_data.kp.iloc[i]
+#         w=x1-x0 
 #         if y < 4.0:
 #             barcolor = 'green'
 #         elif y >= 4.0 and y < 5.0:
 #             barcolor = 'orange'
-#         else:
+#         elif y >= 5.0:
 #             barcolor = 'red'
-#         rect = Rectangle((x0, 0), width, y, color=barcolor)
-#         ax8.add_patch(rect)
+#         ax8.bar(x0, y, width = w, color = barcolor, edgecolor='black', align = 'edge')
+# 
+#     ax8.hlines(kp_thresh, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax8.set_xticklabels(' ')
+#     ax8.xaxis.set_major_formatter(dateFmt)
+#     ax8.xaxis.set_major_locator(daysLoc)
+#     ax8.xaxis.set_minor_locator(hoursLoc)
+#     ax8.set_xlim([st, et])
+#     ax8.set_ylim(0,10)
+#     for l in line:
+#         ax8.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax8.axvspan(bars[b,0], bars[b,1], facecolor=color[events_frac['geoeff'].iloc[b*6]], alpha=0.15) 
+#     ax8.set_xlabel("Start Time "+ str(st)+" (UTC)")
+#     leg = ax8.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)        
+#         
+#         
+#         #x0 = mdates.date2num(kp_data.index[i])
+# #==============================================================================
+# #         x1 = mdates.date2num(kp_data.index[i+1]) 
+# #         width = (x1-x0)
+# #         y = kp_data.kp.iloc[i]
+# #         
+# #         #print(kp_data.index.iloc[i])
+# #         #print(x0,x1,y)
+# #         
+# #         if y < 4.0:
+# #             barcolor = 'green'
+# #         elif y >= 4.0 and y < 5.0:
+# #             barcolor = 'orange'
+# #         else:
+# #             barcolor = 'red'
+# #         rect = Rectangle((x0, 0), width, y, color=barcolor)
+# #         ax8.add_patch(rect)
+# #==============================================================================
 #==============================================================================
     
     #plt.show()
@@ -1340,13 +1503,14 @@ def dst_geo_tag(events, dst_data, dst_thresh = -80, dst_dur_thresh = 2.0, geoeff
     dstdur = pd.DataFrame({'dstdur':[]})
     dstgeoeff = pd.DataFrame({'dstgeoeff':[]})
 
-    prev_time = events.start.iloc[-2]
+    prev_time = events.start.iloc[-1]
 
     for j in range(len(events)):
         
+        
         #if events is dataframe with events by frac then don't need to calc
         #dst for each fraction
-       
+        
         if events.start.iloc[j] != prev_time:
             
             #dst values for event time period
@@ -1453,7 +1617,7 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
     kpdur = pd.DataFrame({'kpdur':[]})
     geoeff = pd.DataFrame({'geoeff':[]})
 
-    prev_time = events.start.iloc[-2]
+    prev_time = events.start.iloc[-1]
 
     for j in range(len(events)):
         
@@ -1527,9 +1691,9 @@ def kp_geo_tag(events, kp_data, kp_thresh = 6, kp_dur_thresh = 3, geoeff_only = 
                 #event is considered geoeffictive if kp > 6 for more than 2 hours 
                 if np.max(time_above_thresh) >= kp_dur_thresh:
                     
-                    print('\n')
-                    print(kp_prev_interval, kp_evt.kp.iloc[0])
-                    print('\n')
+                    #print('\n')
+                    #print(kp_prev_interval, kp_evt.kp.iloc[0])
+                    #print('\n')
                     
                     #now question if the kp is just recovering from previous event being geoeffective
                     #Was the Kp immediately prior to the event above threshold and is the first kp
@@ -1603,7 +1767,6 @@ def predict_geoeff(events_frac, pdf):
     bzmp_ind = np.zeros((nevents),dtype=int)
     taup_ind = np.zeros((nevents),dtype=int)
     P1 = np.zeros((nevents),dtype=float)
-    P1_scaled = np.zeros((nevents),dtype=float)
     P2 = np.zeros((nevents),dtype=float)
     bzm_most_prob = np.zeros((nevents),dtype=float)
     tau_most_prob = np.zeros((nevents),dtype=float)

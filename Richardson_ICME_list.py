@@ -4,6 +4,7 @@
 import numpy as np
 from datetime import datetime
 from datetime import timedelta
+import pandas as pd
 
 def read_richardson_icme_list(indir = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/.spyproject/'):
  
@@ -50,17 +51,31 @@ def read_richardson_icme_list(indir = 'C:/Users/hazel.bain/Documents/MC_predict/
     
     #---comp_time -- to do
     
+    #---MC flag - 2 = MC, 1 = some rotation but not all characteristics, 0 = no MC
+    #remove indexes with H referring to events reported by Huttunen
+    h_ind = np.where(indata['MC'] == b'2H')
+    MC_flag_temp = indata['MC']
+    MC_flag_temp[h_ind] = '2'
+        
+    #record as int
+    MC_flag = MC_flag_temp.astype(int)
+    
     #---MC_time
     mc_start = []
     mc_end = []
     for i in range(nevents):
         
-        #not all ICMEs listed have MC associated (... = no MC)
-        if indata['MC_start'][i].decode("utf-8") != '...':
+        #not all ICMEs listed have MC associated (MC Flag = 0 means no MC)
+        if MC_flag[i] > 0:
+            if indata['MC_start'][i].decode("utf-8") != '...':
             
-            #times are +/- hours relative to the plasma start end times
-            mc_start.append(plasma_time[i][0] + timedelta(hours = int(indata['MC_start'][i])))
-            mc_end.append(plasma_time[i][1] + timedelta(hours = int(indata['MC_end'][i])))
+                #times are +/- hours relative to the plasma start end times
+                mc_start.append(plasma_time[i][0] + timedelta(hours = int(indata['MC_start'][i])))
+                mc_end.append(plasma_time[i][1] + timedelta(hours = int(indata['MC_end'][i])))
+                
+            else:       #where no specific MC times are mentioned, use the ICME plasma time
+                mc_start.append(plasma_start[i])
+                mc_end.append(plasma_end[i])
         
         else:
             
@@ -83,39 +98,43 @@ def read_richardson_icme_list(indir = 'C:/Users/hazel.bain/Documents/MC_predict/
     #---v_max -- to do
     #---B -- to do
     
-    #---MC flag - 2 = MC, 1 = some rotation but not all characteristics, 0 = no MC
-    #remove indexes with H referring to events reported by Huttunen
-    h_ind = np.where(indata['MC'] == b'2H')
-    MC_flag_temp = indata['MC']
-    MC_flag_temp[h_ind] = '2'
-        
-    #record as int
-    MC_flag = MC_flag_temp.astype(int)
+
     
     
     #---Dst -- to do!!!
-    Dst = indata['DST']
-    
-    
+    dst_tmp = []
+    for i in range(nevents):
+        if indata['DST'][i].decode("utf-8") != '...':
+            #print(type(int(indata['DST'][i].decode("utf-8").split(' ')[0])))
+            dst_tmp.append(int(indata['DST'][i].decode("utf-8").split(' ')[0]))
+        else:
+            dst_tmp.append(-999)
+
+    dst_tmp = np.asarray(dst_tmp)  
+
     #---v_transit -- to do
     #---lasco CME time -- to do
     
     outcol_name =  ('year','disturbance_time', 'plasma_start', 'plasma_end', \
                  'mc_start', 'mc_end', 'MC_flag', 'dst')
     outcol_fmt = ('i4', disturbance_time.dtype, plasma_start.dtype, plasma_end.dtype,\
-                 mc_start.dtype, mc_end.dtype, 'i4', 'S10')
+                 mc_start.dtype, mc_end.dtype, 'i4', 'i4')
     
     dataout = np.empty(len(indata['Year']),dtype={'names': outcol_name, \
         'formats': outcol_fmt})
     dataout['year']             = indata['Year']
     dataout['disturbance_time'] = disturbance_time
     dataout['plasma_start']     = plasma_start
+    dataout['plasma_end']     = plasma_end
     dataout['mc_start']         = mc_start 
     dataout['mc_end']           = mc_end
     dataout['MC_flag']          = MC_flag
-    dataout['dst']              = Dst
+    dataout['dst']              = dst_tmp
     
-    return dataout
+    #return a datafram
+    dataout_df = pd.DataFrame.from_records(dataout, columns = dataout.dtype.names)
+    
+    return dataout_df
 
 
 def read_date_format(year, mdt):
