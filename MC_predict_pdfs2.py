@@ -51,6 +51,9 @@ import pickle as pickle
 import platform
 import scipy.integrate as integrate
 from scipy import interpolate
+from sklearn.grid_search import GridSearchCV
+from sklearn.metrics import accuracy_score
+from timeit import default_timer as timer
    
 #import kde_hb as hb
 
@@ -60,8 +63,8 @@ from matplotlib.font_manager import FontProperties
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def create_pdfs(events_time_frac, kernel_alg = 'scipy_stats', \
-                ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
+def create_pdfs(events_time_frac, kernel_alg = 'sklearn', crossval = 1, interp = 1,\
+                ranges = [-150, 150, -250, 250], nbins = [50, 100],\
                 fracs = [0.0, 0.2, 1.0], ew = 2, nw = 0.5, plotting=[0,0,0,0,0], fname='' ):
 
     """
@@ -113,26 +116,61 @@ def create_pdfs(events_time_frac, kernel_alg = 'scipy_stats', \
     #delta_b = b_indices[1] - b_indices[0]
     #np.random.seed(2)
     #events_frac.bzm_predicted = events_frac.bzm_predicted + np.random.uniform(-delta_b, delta_b, len(events_frac))
+
     
-    
-    Pbzm_tau_e = P_bzm_tau_g(events_time_frac, g = 1, ranges=ranges,\
-        nbins=nbins, kernel_width = ew, plotfig = plotting[0])
-    
-    Pbzm_tau_n = P_bzm_tau_g(events_time_frac, g = 0, ranges=ranges,\
-        nbins=nbins, kernel_width = nw, plotfig = plotting[1])
-    
-    Pbzmp_taup_bzm_tau_e, indices = P_bzmp_taup_bzm_tau_g(events_time_frac, g = 1,\
-        ranges=ranges, fracs=fracs, nbins=nbins, kernel_width = ew, plotfig=plotting[2])
-    
-    Pbzmp_taup_bzm_tau_n, indices = P_bzmp_taup_bzm_tau_g(events_time_frac, g = 0,\
-        ranges=ranges, fracs=fracs, nbins=nbins, kernel_width = nw, plotfig=plotting[3])
+    Pbzm_tau_e, k_bzm_tau_e = P_bzm_tau_g(events_time_frac, g = 1, \
+        kernel_alg = 'sklearn', kernel_width = ew, crossval = crossval, interp = interp, \
+        ranges=ranges, nbins=nbins, plotfig = plotting[0])
         
+    Pbzm_tau_n, k_bzm_tau_n = P_bzm_tau_g(events_time_frac, g = 0, \
+        kernel_alg = 'sklearn', kernel_width = nw, crossval = crossval, interp = interp, \
+        ranges=ranges, nbins=nbins, plotfig = plotting[1]) 
+        
+    
+    #create a dictionary to return PDFs etc
+    P_dict = {}
+    P_dict["P_e"] = Pe
+    P_dict["P_n"] = Pn
+    P_dict["P_bzm_tau_e"] = Pbzm_tau_e
+    P_dict["P_bzm_tau_n"] = Pbzm_tau_n
+    P_dict["k_bzm_tau_e"] = k_bzm_tau_e
+    P_dict["k_bzm_tau_n"] = k_bzm_tau_n
+    
+    #save the input paramters as well
+    P_dict["ew"] = ew
+    P_dict["nw"] = nw
+    P_dict["ranges"] = ranges
+    P_dict["nbins"] = nbins
+    P_dict["interp"] = interp
+    P_dict["crossval"] = crossval
+    P_dict["kernel_alg"] = kernel_alg
+    P_dict["fracs"] = fracs
+    
+    #save a pickle file with P_dict
+    pickle.dump(P_dict, open(proj_dir + "PDFs/Pdictn_"+fname+".p", "wb"))
+    
+    Pbzmp_taup_bzm_tau_e, indices = P_bzmp_taup_bzm_tau_g(events_time_frac, g = 1, interp = interp, \
+        kernel_alg = 'sklearn', ranges=ranges, fracs=fracs, nbins=nbins, kernel_width = k_bzm_tau_e, plotfig=plotting[2])
+    
+    #save a pickle file with P_dict
+    P_dict["P_bzmp_taup_bzm_tau_e"] = Pbzmp_taup_bzm_tau_e
+    P_dict["indices"] = indices
+    pickle.dump(P_dict, open(proj_dir + "PDFs/Pdictn_"+fname+".p", "wb"))
+    
+    Pbzmp_taup_bzm_tau_n, indices = P_bzmp_taup_bzm_tau_g(events_time_frac, g = 0, interp = interp, \
+        kernel_alg = 'sklearn', ranges=ranges, fracs=fracs, nbins=nbins, kernel_width = k_bzm_tau_n, plotfig=plotting[3])
+    
+    P_dict["P_bzmp_taup_bzm_tau_n"] = Pbzmp_taup_bzm_tau_n
+    pickle.dump(P_dict, open(proj_dir + "PDFs/Pdictn_"+fname+".p", "wb"))
+    
+    
     posterior, norm_posterior, norm, prob_e, prob_n, axis_vals = P_bzm_tau_g_bzmp_taup(Pe, \
                                                     Pn,\
                                                     Pbzm_tau_e, \
                                                     Pbzm_tau_n, \
                                                     Pbzmp_taup_bzm_tau_e, \
                                                     Pbzmp_taup_bzm_tau_n, \
+                                                    indices = indices, \
                                                     ranges = ranges, nbins = nbins,\
                                                     fracs=fracs, \
                                                     plotfig = plotting[4])
@@ -140,39 +178,21 @@ def create_pdfs(events_time_frac, kernel_alg = 'scipy_stats', \
     #record just the geoeffective posterior into the term P_bzm_tau_e_bzmp_taup 
     P_bzm_tau_e_bzmp_taup = norm_posterior[0,:,:,:,:,:] 
     
-    #plot a record of the input and output PDFs
-    plot_pdfs(events_time_frac, P_dict)
-    
-    #interpolate to finer grid 
-    prob_e_interp, xnew, ynew = interpolate_to_fine_grid(P_dict)
-    
-
-
-    #create a dictionary to return PDFs etc
-    P_dict = {}
-    P_dict["P_e"] = Pe
-    P_dict["P_n"] = Pn
-    P_dict["P_bzm_tau_e"] = Pbzm_tau_e
-    P_dict["P_bzm_tau_n"] = Pbzm_tau_n
-    P_dict["P_bzmp_taup_bzm_tau_e"] = Pbzmp_taup_bzm_tau_e
-    P_dict["P_bzmp_taup_bzm_tau_n"] = Pbzmp_taup_bzm_tau_n
     P_dict["P_bzm_tau_e_bzmp_taup"] = P_bzm_tau_e_bzmp_taup
     P_dict["posterior"] = posterior
     P_dict["norm_posterior"] = norm_posterior
     P_dict["norm"] = norm
     P_dict["prob_e"] = prob_e
     P_dict["prob_n"] = prob_n
-    P_dict["prob_e_interp"] = prob_e_interp
-    P_dict["indices"] = indices
     P_dict["axis_vals"] = axis_vals
+
     
-    #save the input paramters as well
-    P_dict["ew"] = ew
-    P_dict["nw"] = nw
-    P_dict["ranges"] = ranges
-    P_dict["nbins"] = nbins
-    P_dict["kernel_alg"] = kernel_alg
-    P_dict["fracs"] = fracs
+    #plot a record of the input and output PDFs
+    #plot_pdfs(events_time_frac, P_dict)
+    
+    #interpolate to finer grid 
+    #prob_e_interp, xnew, ynew = interpolate_to_fine_grid(P_dict)
+    #P_dict["prob_e_interp"] = prob_e_interp
        
     #save a pickle file with P_dict
     pickle.dump(P_dict, open(proj_dir + "PDFs/Pdictn_"+fname+".p", "wb"))
@@ -395,8 +415,8 @@ def P_n(events_frac):
     return P_n
 
 
-def P_bzm_tau_g(events_frac, g = 1, kernel_alg = 'scipy_stats', \
-                ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
+def P_bzm_tau_g(events_frac, g = 1, kernel_alg = 'scipy_stats', crossval = 0, interp = 0,\
+                ranges = [-150, 150, -250, 250], nbins = [50, 100],\
                 kernel_width = 2, plotfig = 0):  
     
     """
@@ -448,6 +468,8 @@ def P_bzm_tau_g(events_frac, g = 1, kernel_alg = 'scipy_stats', \
     
     """ 
     
+    #start = timer()
+
     if g == 1:
         print('\n\n P_bzm_tau_e: Starting calculation \n\n')
     else:
@@ -467,13 +489,18 @@ def P_bzm_tau_g(events_frac, g = 1, kernel_alg = 'scipy_stats', \
     #true boundary for tau and the corresponding index in the pdf array
     taumin = 0
     #dt0 = dt/2 
-        
+
+    
     #extract raw data points from dataframe of "actual" bzm and tau for geoeffective events
-    gbzm = events_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)+' and bzm < 0.0').bzm
-    gtau = events_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)+' and bzm < 0.0 ').tau
+    if g == 1:
+        gbzm = events_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)+' and bzm < 0.0').bzm
+        gtau = events_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)+' and bzm < 0.0 ').tau
+    else:
+        gbzm = events_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)).bzm
+        gtau = events_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)).tau
+
     
     #print("max bzm: "+str(gbzm.max())+", tau: "+ str(gtau.max()))
-    
     
     #to handle boundary conditions and limit the density estimate to positve 
     #values of tau: reflect the data points along the tau axis, perform the 
@@ -483,18 +510,53 @@ def P_bzm_tau_g(events_frac, g = 1, kernel_alg = 'scipy_stats', \
     gtau_r = np.concatenate([gtau, -gtau])
     
     #grid containing x, y positions 
-    X_bzm, Y_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt]
-    dt0 = int(len(Y_tau[1])/2.)
-    Y_tau = Y_tau-((tmax-tmin)/len(Y_tau[1])/2.)      #to make sure the resulting PDF tau 
+    #X_bzm, Y_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt]
+    #dt0 = int(len(Y_tau[1])/2.)
+    #Y_tau = Y_tau-((tmax-tmin)/len(Y_tau[1])/2.)      #to make sure the resulting PDF tau 
                                             #axis will start at 0. 
+       
+    deltab =  np.abs((bmin-bmax)/db )
+    deltat =  np.abs((tmin-tmax)/dt )
+    
+    x = np.arange(bmin,bmax, deltab)  
+    y = np.arange(tmin,tmax, deltat)                                   
+    X_bzm, Y_tau = np.meshgrid(x,y)
+    
+    #to match mgrid shape
+    X_bzm = X_bzm.T
+    Y_tau = Y_tau.T
+
+    #dt0 = int(len(Y_tau[1])/2.)
+    #dt0 = np.where(y == 0.0)[0][0]
 
     #option to use scikit learn or scipy stats kernel algorithms
     if kernel_alg == 'sklearn':
+
         
         positions = np.vstack([X_bzm.ravel(), Y_tau.ravel()]).T
         values = np.vstack([gbzm_r, gtau_r]).T
+        
+        #use cross validation to determine kernel width
+        if crossval == 1:
+            
+            print('\n\n P_bzm_tau: Kernel Width Cross Validation \n\n')
+            bandwidths = 10 ** np.linspace(-1, 1, 100)
+            grid = GridSearchCV(KernelDensity(kernel='gaussian'),
+                    {'bandwidth': bandwidths}, n_jobs=4, cv=3)
+            grid.fit(values)
+        
+            kernel_width = grid.best_params_['bandwidth']
+
+        #Kde with cross validated kernel width or that specified in keywords
+        #start = timer()
         kernel_bzm_tau_g = KernelDensity(kernel='gaussian', bandwidth=kernel_width).fit(values)
+        #end = timer()
+        #fit_time = end-start
+        
+        #start = timer()
         Ptmp_bzm_tau_g = np.exp(np.reshape(kernel_bzm_tau_g.score_samples(positions).T, X_bzm.shape))
+        #end = timer()
+        #sample_time = end-start
         
     elif kernel_alg == 'scipy_stats':
         
@@ -503,34 +565,113 @@ def P_bzm_tau_g(events_frac, g = 1, kernel_alg = 'scipy_stats', \
         kernel_bzm_tau_g = stats.gaussian_kde(values, bw_method = kernel_width)
         Ptmp_bzm_tau_g = np.reshape(kernel_bzm_tau_g(positions).T, X_bzm.shape)
 
-    #set the density estimate to 0 for negative tau, and x2 for positve tau 
-    P_bzm_tau_g = Ptmp_bzm_tau_g[:,dt0::]*2
+    #return fit_time, len(values)
 
+    if interp == 1:
+        
+        x = X_bzm[:,0]
+        y = Y_tau[0,:]
+        
+        #When on a regular grid with x.size = m and y.size = n, if z.ndim == 2, 
+        #then z must have shape (n, m)
+        z = np.rot90(Ptmp_bzm_tau_g)                            #!!!!!!
+    
+        #interpolate
+        f = interpolate.interp2d(x, y, z, kind='linear')
+        
+        #create the new axis values                
+        deltab2 =  np.abs((bmin-bmax)/db/2 )
+        deltat2 =  np.abs((tmin-tmax)/dt/2 )
+    
+        xx = np.arange(bmin,bmax, deltab2)  
+        yy = np.arange(tmin,tmax, deltat2)                                   
+        X_bzm_new, Y_tau_new = np.meshgrid(xx, yy)
+
+        #to match mgrid shape
+        X_bzm_new = X_bzm_new.T
+        Y_tau_new = Y_tau_new.T
+        
+        xnew = X_bzm_new[:,0]
+        ynew = Y_tau_new[0,:]    
+
+        #create the new interpoated distribution
+        Ptmp_bzm_tau_g_interp = np.rot90(f(xnew, ynew), 3)
+
+
+    #set the density estimate to 0 for negative tau, and x2 for positve tau 
+    if interp == 1:
+        dt0i = int(Ptmp_bzm_tau_g_interp.shape[1]/2)
+        
+        P_bzm_tau_g = Ptmp_bzm_tau_g_interp[:,dt0i+1::]*2
+        P_bzm_tau_g = np.append(P_bzm_tau_g, P_bzm_tau_g[:,-1].reshape(-1,1),axis=1)
+        
+        #for debugging
+        P_bzm_tau_g_interp = Ptmp_bzm_tau_g_interp
+        P_trunc_interp = Ptmp_bzm_tau_g_interp[:,dt0i+1::]*2
+        
+    else:
+        dt0 = int(Ptmp_bzm_tau_g.shape[1]/2)
+        P_bzm_tau_g = Ptmp_bzm_tau_g[:,dt0::]*2
+    
+    #for debugging    
+    dt0 = int(Ptmp_bzm_tau_g.shape[1]/2)    
+    P_trunc = Ptmp_bzm_tau_g[:,dt0::]*2   
+    #P_bzm_tau_g = Ptmp_bzm_tau_g
+
+    #print("shape P_bzm_tau_g", P_bzm_tau_g.shape)
+    #print("shape P_bzm_tau_g_interp", P_bzm_tau_g_interp.shape)
+    #print("shape P_trunc", P_trunc.shape)
+    #print("shape P_trunc_interp", P_trunc_interp.shape)
+
+    #check the normalization, should normalize to 1
+    #norm_bzm_tau_e = integrate.simps(integrate.simps(P_bzm_tau_e,Y_tau[0,dt0::]), X_bzm[:,0])
+    #print('\n\n Normalization for P_bzm_tau_e: ' + str(norm_bzm_tau_e) + '\n\n')
 
     if plotfig == 1:
         
-        fontP = FontProperties()                #legend
-        #fontP.set_size('medium')1
+        if interp == 1:
         
-        fig, ax = plt.subplots()
-        c = ax.imshow(np.rot90(P_bzm_tau_g), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-        ax.plot(gbzm, gtau, 'k.', markersize=4, label = 'bzm, tau, geoeff = 1')
+            fig, (ax1,ax2) = plt.subplots(2,1,figsize=(10,12))
+            maxind = np.unravel_index(np.argmax(P_bzm_tau_g_interp), P_bzm_tau_g_interp.shape)
+            ax1.plot(np.arange(len(P_bzm_tau_g_interp[maxind[0],1::])), P_bzm_tau_g_interp[maxind[0],1::],c='r',marker='o',label='interp')
+            maxind = np.unravel_index(np.argmax(Ptmp_bzm_tau_g), Ptmp_bzm_tau_g.shape)
+            ax1.plot(np.arange(len(Ptmp_bzm_tau_g[maxind[0],:]))*2, Ptmp_bzm_tau_g[maxind[0],:],c='b',marker='o',label='no interp')
+            ax1.axvline(dt0i,ymin=0,ymax=1.0)
+            ax1.axvline(dt0*2,ymin=0,ymax=1.0)
+            ax1.legend()
+            
+            maxind = np.unravel_index(np.argmax(P_trunc), P_trunc.shape)
+            ax2.plot(np.arange(len(P_trunc[maxind[0],:]))*2, P_trunc[maxind[0],:],c='b',marker='o',label='trunc no interp')
+            maxind = np.unravel_index(np.argmax(P_trunc_interp), P_trunc_interp.shape)
+            ax2.plot(np.arange(len(P_trunc_interp[maxind[0],:])), P_trunc_interp[maxind[0],:],c='r',marker='o',label='trunc interp')
+            ax2.legend()
+    
+        
+        
+        fontP = FontProperties()                #legend
+    
+        fig, (ax) = plt.subplots(1,1, figsize=(10,10))
+        c = ax.imshow(np.rot90(P_bzm_tau_g),extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        #ax.plot(gbzm, gtau, 'k.', c='r', markersize=6, label = 'bzm, tau, geoeff = 1')
+        #ax.plot(gbzm_r, gtau_r, 'k.', c='r', markersize=6, label = 'bzm, tau, geoeff = 1')
         ax.set_xlim([bmin, bmax])
         ax.set_ylim([taumin, tmax])
         ax.set_xlabel('Bzm')
         ax.set_ylabel('Tau')
-        ax.set_title('P_bzm_tau_e, bandwidth = '+str(ew))
-        fig.colorbar(c)
+        ax.set_title('P_bzm_tau_e, bandwidth = '+str(kernel_width))
+        #fig.colorbar(c)
         ax.legend(loc='upper right', prop = fontP, fancybox=True)
+        
+
+    if crossval == 1:   
+        return P_bzm_tau_g, kernel_width
+    else:
+        return P_bzm_tau_g, kernel_width
 
 
-    return P_bzm_tau_g  
-
-
-
-def P_bzmp_taup_bzm_tau_g(events_frac, g = 1,  kernel_alg = 'scipy_stats', \
-                ranges = [-150, 150, -250, 250], nbins = [50j, 100j],\
-                fracs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], kernel_width = 2, plotfig = 0):  
+def P_bzmp_taup_bzm_tau_g(events_frac, g = 1,  kernel_alg = 'scipy_stats', interp = 0, \
+                ranges = [-150, 150, -250, 250], nbins = [50, 100],\
+                fracs = [0.0, 0.2, 1.0], kernel_width = 2, plotfig = 0):  
     
     """
     Determine the prior PDF P(Bzm', tau'|(Bzm, tau) n e ; f), the probability 
@@ -608,34 +749,57 @@ def P_bzmp_taup_bzm_tau_g(events_frac, g = 1,  kernel_alg = 'scipy_stats', \
     
     
     #set grid containing x,y positions and use to get array size
-    X_bzmp, Y_taup, XX_bzm, YY_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt, bmin:bmax:db, tmin:tmax:dt]
-    db2 = int(len(X_bzmp[:,0,:,:]))
-    dt2 = int(len(Y_taup[0,:,:,:]))
+    #X_bzmp, Y_taup, XX_bzm, YY_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt, bmin:bmax:db, tmin:tmax:dt]
+    #db2 = int(len(X_bzmp[:,0,:,:]))
+    #dt2 = int(len(Y_taup[0,:,:,:]))
+    
+    deltab =  np.abs((bmin-bmax)/db )
+    deltat =  np.abs((tmin-tmax)/dt )
+    
+    x = np.arange(bmin,bmax, deltab)  
+    y = np.arange(tmin,tmax, deltat)                                   
+    X_bzmp, Y_taup, XX_bzm, YY_tau = np.meshgrid(x,y,x,y,indexing='ij')
+
     
     #P_bzmp_taup_bzm_tau_e is a function of the fraction of time f throughout an event
     #currently the fit to the data considers every 5th of an event 
     nfracs = len(fracs)-1
-    Ptmp_bzmp_taup_bzm_tau_g = np.zeros((db2,dt2,db2,dt2,nfracs))
+    Ptmp_bzmp_taup_bzm_tau_g = np.zeros((db,dt,db,dt,nfracs))
+    Ptmp_bzmp_taup_bzm_tau_g_interp = np.zeros((db*2,dt*2,db*2,dt*2,nfracs))
     for i in range(1, len(fracs)):
         
         #extract raw data points from dataframe of estimates bzm and tau for 
         #fraction f throughout eoeffective events
-        gbzm = events_frac.query('geoeff == '+str(g)+' and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm
-        gtau = events_frac.query('geoeff == '+str(g)+' and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau
-        
+        if g == 1:
+            gbzm = events_frac.query('geoeff == '+str(g)+' and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm
+            gtau = events_frac.query('geoeff == '+str(g)+' and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau
+        else:
+            gbzm = events_frac.query('geoeff == '+str(g)+' and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm
+            gtau = events_frac.query('geoeff == '+str(g)+' and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau
+            
         #extract raw data points from dataframe of estimates bzm' and tau' for 
         #fraction f throughout eoeffective events
-        gbzmp = events_frac.query('geoeff == '+str(g)+' and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
-        gtaup = events_frac.query('geoeff == '+str(g)+' and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted
-        
-        if gtaup.max() == np.inf:
-            inf_idx = gtaup[gtaup == np.inf].index.values[0]
-            gtaup.drop([inf_idx], inplace = True)
-            gbzmp.drop([inf_idx], inplace = True)
-            gtau.drop([inf_idx], inplace = True)
-            gbzm.drop([inf_idx], inplace = True)
+        if g == 1:
+            gbzmp = events_frac.query('geoeff == '+str(g)+' and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
+            gtaup = events_frac.query('geoeff == '+str(g)+' and bzm < 0.0  and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted
+        else:    
+            gbzmp = events_frac.query('geoeff == '+str(g)+' and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).bzm_predicted
+            gtaup = events_frac.query('geoeff == '+str(g)+' and frac_est >= ' + str(fracs[i-1]) + ' and frac_est < ' + str(fracs[i])).tau_predicted
 
-    
+        if gtaup.max() == np.inf:
+            #inf_idx = list(gtaup[gtaup == np.inf].index.values.astype(int))
+            #print(inf_idx)
+            #gtaup.drop(gtaup.index[inf_idx], axis=0, inplace = True)
+            #gbzmp.drop(gbzmp.index[inf_idx], axis=0, inplace = True)
+            #gtau.drop(gtau.index[inf_idx], axis=0, inplace = True)
+            #gbzm.drop(gbzm.index[inf_idx], axis=0, inplace = True)
+            
+            gbzmp = gbzmp[gtaup != np.inf]
+            gtau = gtau[gtaup != np.inf]
+            gbzm = gbzm[gtaup != np.inf]
+            gtaup = gtaup[gtaup != np.inf]     #note this needs to go last
+
+
         #to handle boundary conditions and limit the density estimate to positve 
         #values of tau' and tau: reflect the data points along the tau' and tau
         #axes, perform the ensity estimate and then set negative values of 
@@ -647,49 +811,118 @@ def P_bzmp_taup_bzm_tau_g(events_frac, g = 1,  kernel_alg = 'scipy_stats', \
         
         #make sure the resulting PDF tau axis will start at 0 hours. 
         dt0 = int(len(Y_taup[1])/2)
-        Y_taup = Y_taup-((tmax-tmin)/len(Y_taup[1])/2.)
-        YY_tau = YY_tau-((tmax-tmin)/len(YY_tau[1])/2.)
+        #Y_taup = Y_taup-((tmax-tmin)/len(Y_taup[1])/2.)
+        #YY_tau = YY_tau-((tmax-tmin)/len(YY_tau[1])/2.)
         
         #option to use scikit learn or scipy stats kernel algorithms
         if kernel_alg == 'sklearn':
             
-            positions = np.vstack([X_bzmp.ravel(), Y_taup.ravel(), XX_bzm.ravel(), YY_tau.ravel()]).T
-            values = np.vstack([gbzmp_r, gtaup_r, gbzm_r, gtau_r]).T        
+            positions = np.vstack([X_bzmp.ravel(), Y_taup.ravel(), XX_bzm.ravel(), YY_tau.ravel()]).T 
+            values = np.vstack([gbzmp_r, gtaup_r, gbzm_r, gtau_r]).T  
+
+            #start = timer()
             kernel_bzmp_taup_bzm_tau_g = KernelDensity(kernel='gaussian', bandwidth=kernel_width).fit(values)
-            
+            #end = timer()
+            #fit_time = end-start
+                        
+            #start = timer()
             Ptmp_bzmp_taup_bzm_tau_g[:,:,:,:,i-1] = np.exp(np.reshape(kernel_bzmp_taup_bzm_tau_g.score_samples(positions).T, X_bzmp.shape))
+            #end = timer()
+            #sample_time = end-start
+        
             
         elif kernel_alg == 'scipy_stats':    
             
             positions = np.vstack([X_bzmp.ravel(), Y_taup.ravel(), XX_bzm.ravel(), YY_tau.ravel()])
             values = np.vstack([gbzmp_r, gtaup_r, gbzm_r, gtau_r])  
             
-            kernel_bzmp_taup_bzm_tau_g = stats.gaussian_kde(values, bw_method = kernel_width)
+            kernel_bzmp_taup_bzm_tau_g = stats.gaussian_kde(values, bw_method = kernel_width)            
             Ptmp_bzmp_taup_bzm_tau_g[:,:,:,:,i-1] = np.reshape(kernel_bzmp_taup_bzm_tau_g(positions).T, X_bzmp.shape)
-
-            
  
-    #set the density estimate to 0 for negative tau, and x4 for positve tau 
-    P_bzmp_taup_bzm_tau_g = Ptmp_bzmp_taup_bzm_tau_g[:,dt0::,:,dt0::,:]*4       #*50*50*2    
+    
+        #interplotation
+        if interp == 1:
+            
+            x = X_bzmp[:,0,0,0]
+            y = Y_taup[0,:,0,0] 
+            xx = XX_bzm[0,0,:,0]
+            yy = YY_tau[0,0,0,:] 
+            
+            #When on a regular grid with x.size = m and y.size = n, if z.ndim == 2, 
+            #then z must have shape (n, m)
+            #to avoid having to rotate the 4D structure - switch the x's and y's in the interp
 
-    #check the normalization of the 4D space   
-    bp = X_bzmp[:,0,0,0]
-    tp = Y_taup[0,dt0::,0,0]
-    b = XX_bzm[0,0,:,0]
-    t = YY_tau[0,0,0,dt0::]
+            z = Ptmp_bzmp_taup_bzm_tau_g[:,:,:,:,i-1]                      
+        
+            #create the new axis values                
+            deltab2 =  np.abs((bmin-bmax)/db/2 )
+            deltat2 =  np.abs((tmin-tmax)/dt/2 )
+        
+            x_new = np.arange(bmin,bmax, deltab2)  
+            y_new = np.arange(tmin,tmax, deltat2)                                   
+            X_bzmp_new, Y_taup_new, XX_bzm_new, YY_tau_new = np.meshgrid(x_new[0:-1], y_new[0:-1], x_new[0:-1], y_new[0:-1], indexing='ij')
+            
+            #xnew2 = X_bzmp_new[:,0,0,0]
+            #ynew2 = Y_taup_new[0,:,0,0] 
+            #xxnew2 = XX_bzm_new[0,0,:,0]
+            #yynew2 = YY_tau_new[0,0,0,:] 
+
+            positions_new = np.vstack([X_bzmp_new.ravel(), Y_taup_new.ravel(), XX_bzm_new.ravel(), YY_tau_new.ravel()]).T 
+        
+            #interpolate
+            tmp = interpolate.interpn((x, y, xx, yy), z, positions_new)
+            Ptmp_bzmp_taup_bzm_tau_g_interp[0:-1,0:-1,0:-1,0:-1,i-1] = np.reshape(tmp, X_bzmp_new.shape)
+
+            #print("Pinterp shape")
+            #print("Ptmp_bzmp_taup_bzm_tau_g_interp", Ptmp_bzmp_taup_bzm_tau_g_interp.shape)
     
-    indices = np.squeeze(np.array([[bp],[tp],[b],[t]]))
-    
-                                
+    #set the density estimate to 0 for negative tau, and x2 for positve tau 
+    if interp == 1:
+
+        dt0 = int(Ptmp_bzmp_taup_bzm_tau_g_interp.shape[1]/2)
+        P_bzmp_taup_bzm_tau_g = Ptmp_bzmp_taup_bzm_tau_g_interp[:,dt0::,:,dt0::,:]*4
+        
+        #indices 
+        bp = X_bzmp_new[:,0,0,0]
+        tp = Y_taup_new[0,dt0::,0,0]
+        b = XX_bzm_new[0,0,:,0]
+        t = YY_tau_new[0,0,0,dt0::]
+        
+        bp = np.append(bp,bp[-1]+(bp[-1] - bp[-2]))
+        tp = np.append(tp,tp[-1]+(tp[-1] - tp[-2]))
+        b = np.append(b,b[-1]+(b[-1] - b[-2]))
+        t = np.append(t,t[-1]+(t[-1] - t[-2]))
+                
+        indices = np.squeeze(np.array([[bp],[tp],[b],[t]]))
+            
+    else:
+        dt0 = int(Ptmp_bzmp_taup_bzm_tau_g.shape[1]/2)
+        P_bzmp_taup_bzm_tau_g = Ptmp_bzmp_taup_bzm_tau_g[:,dt0::,:,dt0::,:]*4 
+        
+        #indices 
+        bp = X_bzmp[:,0,0,0]
+        tp = Y_taup[0,dt0::,0,0]
+        b = XX_bzm[0,0,:,0]
+        t = YY_tau[0,0,0,dt0::]
+        
+        indices = np.squeeze(np.array([[bp],[tp],[b],[t]]))
+
+    #print("Ptmp_bzmp_taup_bzm_tau_g here", P_bzmp_taup_bzm_tau_g.shape)
+
     if plotfig == 1:
         
         fontP = FontProperties()                #legend
         #fontP.set_size('medium')1
         
+        predicted_duration = 15.0
+        predicted_bzmax = -26.0
+        indt = np.min(np.where(t > predicted_duration))
+        indb = np.max(np.where(b < predicted_bzmax))
+
         fig, ax = plt.subplots()
         c = ax.imshow(np.rot90(P_bzmp_taup_bzm_tau_g[:,:,indb,indt,0]), extent=(bmin,bmax,taumin,tmax), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-        ax.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b')
-        ax.plot(gbzmp, gtaup, 'k.', markersize=4, c='r')
+        #ax.plot(gbzmp_n, gtaup_n, 'k.', markersize=4, c='b')
+        #ax.plot(gbzmp, gtaup, 'k.', markersize=4, c='r')
         ax.set_xlim([bmin, bmax])
         ax.set_ylim([taumin, tmax])
         ax.set_xlabel('Bzm')
@@ -700,8 +933,8 @@ def P_bzmp_taup_bzm_tau_g(events_frac, g = 1,  kernel_alg = 'scipy_stats', \
 
 
 def P_bzm_tau_g_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzm_tau_n, P_bzmp_taup_bzm_tau_e,\
-                P_bzmp_taup_bzm_tau_n, ranges = [-150, 150, -250, 250], \
-                nbins = [50j, 100j], fracs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], plotfig = 0):  
+                P_bzmp_taup_bzm_tau_n, indices, ranges = [-150, 150, -250, 250], \
+                nbins = [50, 100], fracs = [0.0, 0.2, 1.0], plotfig = 0):  
     
     """
     Determine the posterior PDF P((Bzm, tau) n e |Bzm', tau' ; f), the probability 
@@ -763,21 +996,26 @@ def P_bzm_tau_g_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzm_tau_n, P_bzmp_taup_bzm_ta
     tmax = ranges[3]
     
     #number of data bins in each dimension (dt takes into account the reflection)
-    db = nbins[0]
-    dt = nbins[1]
+    #db = nbins[0]
+    #dt = nbins[1]
+    db, dt = P_bzm_tau_e.shape
     
     #set grid containing x,y positions and use to get array size
-    X_bzmp, Y_taup, XX_bzm, YY_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt, bmin:bmax:db, tmin:tmax:dt] 
-    dt0 = int(len(Y_taup[1])/2.)
-    db2 = int(len(X_bzmp[:,0,:,:]))
-    dt2 = int(len(Y_taup[0,:,:,:])/2)
-    
+    #X_bzmp, Y_taup, XX_bzm, YY_tau = np.mgrid[bmin:bmax:db, tmin:tmax:dt, bmin:bmax:db, tmin:tmax:dt] 
+    #dt0 = int(len(Y_taup[1])/2.)
+    #db2 = int(len(X_bzmp[:,0,:,:]))
+    #dt2 = int(len(Y_taup[0,:,:,:])/2)
     
     #check the normalization of the 4D space   
-    bp = X_bzmp[:,0,0,0]
-    tp = Y_taup[0,dt0::,0,0]
-    b = XX_bzm[0,0,:,0]
-    t = YY_tau[0,0,0,dt0::]
+    #bp = X_bzmp[:,0,0,0]
+    #tp = Y_taup[0,dt0::,0,0]
+    #b = XX_bzm[0,0,:,0]
+    #t = YY_tau[0,0,0,dt0::]
+    
+    bp= indices[0,:]
+    tp= indices[1,:]
+    b= indices[2,:]
+    t= indices[3,:]
     
     axis_vals = np.array([bp,tp,b,t])    
     
@@ -788,15 +1026,15 @@ def P_bzm_tau_g_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzm_tau_n, P_bzmp_taup_bzm_ta
     #P_bzm_tau_e_bzmp_taup_e is a function of the fraction of time f throughout an event
     nfracs = len(fracs)-1    
 
-    posterior = np.zeros((2, db2, dt2, db2, dt2, nfracs))
-    norm_posterior = np.zeros((2, db2, dt2, db2, dt2, nfracs))
-    norm = np.zeros((db2, dt2, nfracs))
-    prob_e = np.zeros((db2, dt2, nfracs))
-    prob_n = np.zeros((db2, dt2, nfracs))
+    posterior = np.zeros((2, db, dt, db, dt, nfracs))
+    norm_posterior = np.zeros((2, db, dt, db, dt, nfracs))
+    norm = np.zeros((db, dt, nfracs))
+    prob_e = np.zeros((db, dt, nfracs))
+    prob_n = np.zeros((db, dt, nfracs))
     
     for i in range(nfracs):
-        for j in range(db2):
-            for k in range(dt2):
+        for j in range(db):
+            for k in range(dt):
                     
                 #bayes for the geoeffective events        
                 bayes_e = np.multiply(P_bzmp_taup_bzm_tau_e[j,k,:,:,i], P_bzm_tau_e) * P_e
@@ -817,7 +1055,8 @@ def P_bzm_tau_g_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzm_tau_n, P_bzmp_taup_bzm_ta
                 #calculate the probability map for P1
                 prob_e[j,k,i] = integrate.simps(integrate.simps(norm_posterior[0,:,:,j,k,i], bp), tp)
                 prob_n[j,k,i] = integrate.simps(integrate.simps(norm_posterior[1,:,:,j,k,i], bp), tp)
-                
+              
+    print(prob_e.shape)
             
     if plotfig == 1:
         
@@ -826,9 +1065,9 @@ def P_bzm_tau_g_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzm_tau_n, P_bzmp_taup_bzm_ta
             
         fig, (ax1,ax2) = plt.subplots(1,2, figsize = (10,5))
     
-        c1 = ax1.imshow(np.rot90(prob_e), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-        ax1.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 1')
-        ax1.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
+        c1 = ax1.imshow(np.rot90(prob_e[:,:,0]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        #ax1.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 1')
+        #ax1.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
         ax1.set_xlim([ranges[0], ranges[1]])
         ax1.set_ylim([0, ranges[3]])
         ax1.set_xlabel('Bzm')
@@ -836,9 +1075,9 @@ def P_bzm_tau_g_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzm_tau_n, P_bzmp_taup_bzm_ta
         ax1.set_title('Prob Geoeffective')
         fig.colorbar(c1, ax = ax1, fraction=0.025)
         
-        c2 = ax2.imshow(np.rot90(prob_n), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
-        ax2.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 1')
-        ax2.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
+        c2 = ax2.imshow(np.rot90(prob_n[:,:,0]), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        #ax2.plot(gbzmn, gtaun, 'k.', markersize=4, c='b', label = 'bzm, tau, g = 1')
+        #ax2.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
         ax2.set_xlim([ranges[0], ranges[1]])
         ax2.set_ylim([0, ranges[3]])
         ax2.set_xlabel('Bzm')
@@ -852,7 +1091,102 @@ def P_bzm_tau_g_bzmp_taup(P_e, P_n, P_bzm_tau_e, P_bzm_tau_n, P_bzmp_taup_bzm_ta
     return posterior, norm_posterior, norm, prob_e, prob_n, axis_vals 
 
 
-def interpolate_to_fine_grid(P_dict, events_time_frac = events_time_frac, plot = 0, fracs = [0.2,1.0]):
+def P_bzm_tau_g_interpolate(P_bzm_tau_g, events_time_frac, g=1, ranges = [-150, 150, -250, 250], \
+                            nbins = [50j, 100j], plotfig = 0):
+
+
+    ##recreate the coarse grid points
+    X_bzm, Y_tau = np.mgrid[ranges[0]:ranges[1]:nbins[0], \
+                            ranges[2]:ranges[3]:nbins[1]]
+    
+    dt0 = int(len(Y_tau[1])/2.)
+    Y_tau = Y_tau-((ranges[3]-ranges[2])/len(Y_tau[1])/2.)
+    
+    #number of data bins in each dimension (dt takes into account the reflection)
+    db = int(len(X_bzm[:,0]))
+    dt = int(len(Y_tau[0,:]))
+    
+    dt0 = int(len(Y_tau[1])/2.)
+
+    #only take the mesh for tau > 0 
+    X_bzm = X_bzm[:,db:dt]
+    Y_tau = Y_tau[:,db:dt]
+
+    #prep the axes and grid for the interpolation
+    #x = np.arange(X_bzm[0,0], X_bzm[-1,0], X_bzm[1,0]-X_bzm[0,0])
+    #y = np.arange(Y_tau[0][0], Y_tau[0][-1], Y_tau[0][1]-Y_tau[0][0])
+    
+    x = X_bzm[:,0]
+    y = Y_tau[0,:]
+    #y2 = np.arange(0, 250., Y_tau[0][1]-Y_tau[0][0])
+    xx, yy = np.meshgrid(x, y)
+    z = np.rot90(P_bzm_tau_g)
+
+    #interpolate
+    f = interpolate.interp2d(x, y, z, kind='cubic')
+    
+    #create the new axis values
+    nbins_new = [x*2 for x in nbins]
+    X_bzm_new, Y_tau_new = np.mgrid[ranges[0]:ranges[1]:nbins_new[0], \
+                            ranges[2]:ranges[3]:nbins_new[1]]
+
+    
+    X_bzm_new = X_bzm_new[:,db*2:dt*2]
+    Y_tau_new = Y_tau_new[:,db*2:dt*2]
+    
+    #xnew = np.arange(X_bzm_new[0,0], X_bzm_new[-1,0], X_bzm_new[1,0]-X_bzm_new[0,0])
+    #ynew = np.arange(Y_tau_new[0][0], Y_tau_new[0][-1], Y_tau_new[0][1]-Y_tau_new[0][0])
+    #ynew = np.append(ynew, [200.0])
+    xnew = X_bzm_new[:,0]
+    ynew = Y_tau_new[0,:]    
+    
+    #create the new interpoated distribution
+    P_bzm_tau_g_new = f(xnew, ynew)
+    
+    #renormalize 
+    #P_bzm_tau_g_new_norm = (P_bzm_tau_g_new - P_bzm_tau_g_new.min())/(P_bzm_tau_g_new.max()-P_bzm_tau_g_new.min())
+    
+    #plot
+    if plotfig == 1:
+    
+        fig, (ax1,ax2) = plt.subplots(1,2, figsize = (10,5))
+        
+        if g == 1:
+            gbzm = events_time_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)+' and bzm < 0.0').bzm
+            gtau = events_time_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)+' and bzm < 0.0 ').tau
+        else:
+            gbzm = events_time_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)).bzm
+            gtau = events_time_frac.drop_duplicates('evt_index').query('geoeff == '+str(g)).tau
+
+    
+        c1 = ax1.imshow(np.rot90(P_bzm_tau_g), extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax1.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
+        ax1.set_xlim([ranges[0], ranges[1]])
+        ax1.set_ylim([0, ranges[3]])
+        ax1.set_xlabel('Bzm (nT)')
+        ax1.set_ylabel('Tau (hours)')
+        ax1.set_title('P_bzm_tau_'+str(g)+' (coarse orig)')
+        fig.colorbar(c1, ax = ax1, fraction=0.025)
+        
+        c2 = ax2.imshow(P_bzm_tau_g_new, extent=(ranges[0],ranges[1],0,ranges[3]), cmap=plt.cm.gist_earth_r, interpolation = 'none')
+        ax2.plot(gbzm, gtau, 'k.', markersize=4, c='r', label = 'bzm, tau, g = 1')
+        ax2.set_xlim([ranges[0], ranges[1]])
+        ax2.set_ylim([0, ranges[3]])
+        ax2.set_xlabel('Bzm (nT)')
+        ax2.set_ylabel('Tau  (hours)')
+        ax2.set_title('P_bzm_tau_'+str(g)+' (fine interp)')
+        fig.colorbar(c2, ax = ax2, fraction=0.025)
+    
+        plt.tight_layout()
+    
+        #fig.savefig(proj_dir + 'PDFs/plots/P1_bayes_interp_test_dst100.pdf')
+    
+    
+    return P_bzm_tau_g_new
+
+
+
+def interpolate_to_fine_grid(P_dict, events_time_frac, plot = 0, fracs = [0.2,1.0]):
     
     """
     Interpolate the P1 map to a finer grid scale to reduce compute time
