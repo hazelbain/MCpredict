@@ -552,7 +552,7 @@ def kfold(events_time_frac):
 
     #pdf.create_pdfs(X_events_train0, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_ss0')
     
-    pdf.create_pdfs(X_events_train1, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_ss1')
+    #pdf.create_pdfs(X_events_train1, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_ss1')
 
     pdf.create_pdfs(X_events_train2, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_ss2')
         
