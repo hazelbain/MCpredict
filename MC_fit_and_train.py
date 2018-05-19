@@ -546,7 +546,7 @@ def kfold(events_time_frac):
    
     
     
-    ranges=[-100,100,-75,75]
+    ranges=[-150,150,-150,150]
     nbins=[30,60]
     fracs = [0.2,1.0]
 
