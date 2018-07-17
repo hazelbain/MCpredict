@@ -607,25 +607,40 @@ def mcpredict_plot(data, events, events_time_frac, dst_data, kp_data, line= [], 
         if events['geoeff'].iloc[b] == 1.0:
             ax2.hlines(events['bzm'].iloc[b], bars[b,0], bars[b,1], linestyle='-',color='grey')
 
+
+    print(bars)
     #plot the fitted profile at certain intervals through the event  
     if plot_fit == 1:
         for i in range(len(bars)): 
+            print(events.geoeff)
             #only plot the fits for the geoeffective events
-            if (events['geoeff'].iloc[i] == 1.0):
+            #if (events['geoeff'].iloc[i] == 1.0):       ### HACK
+            if i == 1:   
+
+                print(i)                
+                #print("\n")
+                #print(events.start)
+                #print("\n")
+                #print(events_time_frac.start)
+                #print("\n")
                 
                 #subset of events_time_frac associated with the current geoeffective event
-                evts_time_frac= events_time_frac.query('start == '+events['start'].iloc[0])
-                
-
-                
+                evts_time_frac= events_time_frac.query('start == "'+str(events['start'].iloc[i]) + '"')
+                                
                 for j in np.arange(0, len(evts_time_frac), int(len(evts_time_frac)/3)):
                  
+                    evts_time_frac['bzm_predicted'].iloc[j]
+                    
                     #for each fraction of an event, determine the current fit to the profile up to this point
                     pred_dur = evts_time_frac['tau_predicted'].iloc[j] * 60.
-                    fit_times = [evts_time_frac['start'].iloc[j] + timedelta(seconds = j*60) for k in np.arange(pred_dur)]
+                    fit_times = [evts_time_frac['start'].iloc[0] + timedelta(seconds = int(k)*60) for k in np.arange(pred_dur)]
                     fit_profile = evts_time_frac['bzm_predicted'].iloc[j] * np.sin(np.pi*np.arange(0,1,1./(pred_dur)) )          
-                
-                    ax2.plot(fit_times, fit_profile, color=fitcolor[j])    
+
+                    ax2.plot(fit_times, fit_profile, c='black', ls = '--')    
+
+        
+        
+                    #ax2.plot(fit_times, fit_profile, color=fitcolor[int(j)])    
 
     #----density
     ax3.plot(data['date'], data['sw_n'], label='n ($\mathrm{cm^-3}$)')
@@ -675,6 +690,36 @@ def mcpredict_plot(data, events, events_time_frac, dst_data, kp_data, line= [], 
     #ax7.set_xlabel("Start Time "+ str(st)+" (UTC)")
     leg = ax5.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
     leg.get_frame().set_alpha(0.5)
+    
+    
+    
+#==============================================================================
+#     #----theta_z
+#     ax6.plot(data['date'], data['theta_z'], label='theta_z')
+#     ax6.hlines(0.0, data['date'][0], data['date'].iloc[-1], linestyle='--',color='grey')
+#     ax6.set_xticklabels(' ')
+#     ax6.xaxis.set_major_locator(daysLoc)
+#     ax6.xaxis.set_minor_locator(hoursLoc)
+#     ax6.set_xlim([st, et])
+#     for l in line:
+#         ax6.axvline(x=l, linewidth=2, linestyle='--', color='black')
+#     for b in range(len(bars)):
+#         ax6.axvspan(bars[b,0], bars[b,1], facecolor=color[events['dstgeoeff'].iloc[b]], alpha=0.15) 
+#     leg = ax6.legend(loc='upper left', prop = fontP, fancybox=True, frameon=False )
+#     leg.get_frame().set_alpha(0.5)
+#==============================================================================
+     
+#==============================================================================
+#     #plot the position of max theta
+#     for i in np.arange(5, len(events_frac), 6):
+#         if (events_frac['geoeff'].iloc[i] == 1.0):
+#              
+#             wmax_th = np.where( data['theta_z'].iloc[events_frac['istart_bz'].iloc[i] : events_frac['iend_bz'].iloc[i]] == events_frac['theta_z_max'].iloc[i])[0]
+#             
+#             ax6.axvline(x=data['date'].iloc[events_frac['istart_bz'].iloc[i] + wmax_th].values[0], \
+#                      linewidth=1, linestyle='--', color='grey')
+#      
+#==============================================================================
     
     
     #--- plot kp
@@ -1340,8 +1385,13 @@ def predict_duration(data, istart, iend, component = 'z'):
         #i_thetamax = istart + index_theta_max
 
 
+        #iii0 = 1099
+        #iii1 = 2074
+        
 #==============================================================================
-#         if ((istart >= 1484) & (iend  <= 2024)):
+#         iii0 = 1041
+#         iii1 = 1501
+#         if ((istart >= iii0) & (iend  <= iii1)):
 #             print("\n time: "+ str(data.date.iloc[i]) +" theta_max: " +str(theta_max))
 #==============================================================================
 
@@ -1352,27 +1402,28 @@ def predict_duration(data, istart, iend, component = 'z'):
             if increasing == 0:
                 dtheta = (theta_max - theta_start)
                 dth = 180.0 
-                increasing = 1
+                #increasing = 1
             else:
                 dtheta = (theta_max - theta_start) + (theta_max - theta_current)
                 dth = 2.0 * theta_max
             
 #==============================================================================
-#             if ((istart >= 1484) & (iend  <= 2024)):
+#             if ((istart >= iii0) & (iend  <= iii1)):
 #                 print("increasing")
-#                 print("dtheta: " +str(dtheta))
+#                 print("dtheta: %f, dth %f, increase_flag %i" % (dtheta, dth, increasing))
 #==============================================================================
         else:
 
+            increasing = 1
             dtheta = (theta_max - theta_start) + (theta_max - theta_current)
             dth = 2.0 * theta_max
             
 #==============================================================================
-#             if ((istart >= 1484) & (iend  <= 2024)):
+#             if ((istart >= iii0) & (iend  <= iii1)):
 #                 print("decreasing")
-#                 print("dtheta: " +str(dtheta))
+#                 print("dtheta: %f, dth %f" % (dtheta, dth))
+#  
 #==============================================================================
- 
         #determine the predicted duration and rate of rotation of field    
         dduration = i - istart
         rate_of_rotation = dtheta/dduration  #in degrees/minutes
@@ -1382,12 +1433,12 @@ def predict_duration(data, istart, iend, component = 'z'):
         frac_est = dduration/(predicted_duration*60.)
         
 #==============================================================================
-#         if ((istart >= 4256) & (iend  <= 4748)):
+#         if ((istart >= iii0) & (iend  <= iii1)):
 #             print("dur: " + str(dduration) + ", rate_rot: " + str(rate_of_rotation) + ", pred_dur: " + str(predicted_duration),\
 #                   "actual dur: " + str((iend-istart)/60.)) 
 #   
+# 
 #==============================================================================
-
 
         #now try and predict B component max
         if value_increasing(b_current, b_max):
@@ -1395,15 +1446,28 @@ def predict_duration(data, istart, iend, component = 'z'):
             form_function = np.sin(np.pi*((i_bmax - istart)/60.)/predicted_duration) #Sin function in radians
             predicted_bmax = b_max/form_function
             
+#==============================================================================
+#             if ((istart >= iii0) & (iend  <= iii1)):
+#                 print("increasing B, form_function %f, pred bz %f, b_max %f" % (form_function, predicted_bmax, np.min(b[istart:iend])) )
+#             
+#==============================================================================
             #if (form_function < 0) & (i >= step-1):
             #    predicted_bzmax = data['bzm_predicted'][i-step-1]
         else:
             predicted_bmax = b_max
             
+#==============================================================================
+#             if ((istart >= iii0) & (iend  <= iii1)):
+#                 print("decreasing B, pred bz %f, bmax %f" % (predicted_bmax, np.min(b[istart:iend])) )
+#             
+#         print("bmax after if %f" % predicted_bmax)
+#         
+#==============================================================================
+        
         #print(b_max, predicted_bmax, dduration/60., predicted_duration, frac_est)    
                            
-        if np.abs(predicted_bmax) > 30.:
-            predicted_bmax = b_max 
+        #if np.abs(predicted_bmax) > 30.:
+        #    predicted_bmax = b_max 
         
         if component == 'z':
             
@@ -1413,6 +1477,9 @@ def predict_duration(data, istart, iend, component = 'z'):
             data.loc[i-step:i, 'tau_actual'] = (iend-istart)/60.
             data.loc[i-step:i, 'frac_est'] = frac_est
             data.loc[i-step:i, 'bzm_predicted'] = predicted_bmax
+            
+            #print(predicted_bmax)
+            #print(data.bzm_predicted.iloc[i])
     
             #index of max bz up to the current time - used for fitting bz profile
             data.loc[i-step:i, 'i_bzmax'] = i_bmax
@@ -1769,14 +1836,19 @@ def predict_geoeff(events_time_frac, Pdict):
             continue
         
         if events_time_frac.tau_predicted.iloc[i] > Pdict["axis_vals"][3][-1]:
-            bzmp_ind[i] = np.max(np.where(Pdict['axis_vals'][0] < events_time_frac.bzm_predicted.iloc[i])[0])
             taup_ind[i] = len(Pdict["axis_vals"][3])-1
-
         else:
-            #find the plane of probabilities for estimates bzmp and taup
-            bzmp_ind[i] = np.max(np.where(Pdict['axis_vals'][0] < events_time_frac.bzm_predicted.iloc[i])[0])
             taup_ind[i] = np.min(np.where(Pdict['axis_vals'][1] > events_time_frac.tau_predicted.iloc[i])[0])
-        
+            
+        if np.abs(events_time_frac.bzm_predicted.iloc[i]) > Pdict["axis_vals"][2][-1]:
+            if events_time_frac.bzm_predicted.iloc[i] > 0:
+                bzmp_ind[i] = len(Pdict["axis_vals"][2])-1
+            else:
+                bzmp_ind[i] = 0
+        else:
+            bzmp_ind[i] = np.max(np.where(Pdict['axis_vals'][0] < events_time_frac.bzm_predicted.iloc[i])[0])
+            
+
 
         #the probability of the event being geoeffective with any value of bzm and tau
         #predict.P1.iloc[i] = pdf['P1_map'][bzmp_ind, taup_ind, events_frac.iloc[i]*5]

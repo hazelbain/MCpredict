@@ -9,7 +9,7 @@ Created on Sat May 12 15:16:52 2018
     from sklearn.metrics import roc_curve
     import scikitplot as skplt
 
-    events_time_frac = pickle.load(open("train/events_time_frac_fitall3_train_dst80_kp6_clean2.p","rb"))
+    events_time_frac = pickle.load(open("train/events_time_frac_bzfix_train_dst80_kp6_clean.p","rb"))
     Pdict = pickle.load(open("PDFs/Pdict_30interp_100_75_2.p","rb"))
 
     
@@ -23,8 +23,8 @@ Created on Sat May 12 15:16:52 2018
         events_time_frac.loc[events_time_frac.eval(criteria), 'geoeff'] = 3
         
     #all icme into geoeff
-    #criteria = 'geoeff == 3'
-    #events_time_frac.loc[events_time_frac.eval(criteria), 'geoeff'] = 1
+    criteria = 'geoeff == 3'
+    events_time_frac.loc[events_time_frac.eval(criteria), 'geoeff'] = 1
         
     
     e = events_time_frac.drop_duplicates(["evt_index"], keep = 'last')\

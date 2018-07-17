@@ -17,6 +17,7 @@ Created on Tue Jan  9 11:24:48 2018
 import read_dst as dst
 import read_kp as kp
 import Richardson_ICME_list as icme
+from MCpredict import predict_geoeff as pgeo
 
 from read_database import get_data
 from MCpredict import clean_data
@@ -40,11 +41,19 @@ def main():
     else:
         proj_dir = 'C:/Users/hazel.bain/Documents/MC_predict/pyMCpredict/MCpredict/'
     
+    #read in the pdfs
+    Pdict2 = pickle.load(open("PDFs/Pdict_30interp_100_75_2.p","rb"))
+    #Pdict2 = pickle.load(open("PDFs/Pdictn_events_time_frac_fitall3_train_dst80_kp6_clean2_ss0.p","rb"))
+    
     
     ## read in fit all events files
     events_time_frac = pickle.load(open("train/events_time_frac_fitall3_train_dst80_kp6_clean2.p","rb"))
     events = pickle.load(open("train/events_fitall3_train_dst80_kp6_clean2.p","rb"))
     
+    #predicr geoeffectiveness
+    events_time_frac = pgeo(events_time_frac, Pdict2)
+    
+    #drop any duplicates
     events_time_frac = events_time_frac.drop_duplicates(["evt_index","start","frac_start"], keep='last')
     
     #read in the dst data
@@ -56,26 +65,24 @@ def main():
     #read in Richardson and Cane ICME list 
     icme_list = icme.read_richardson_icme_list()
     
-    #read in the pdfs
-    Pdict2 = pickle.load(open("PDFs/Pdict_30interp_100_75_2.p","rb"))
-    #Pdict2 = pickle.load(open("PDFs/Pdictn_events_time_frac_fitall3_train_dst80_kp6_clean2_ss0.p","rb"))
-    
-    
-    
+
     time_before = 24
 
     #loop through clean MC events i.e. geoeff == 1
-    geo1_ind = (events.query('geoeff == 1').index).astype('int')
+    #geo1_ind = (events.query('geoeff == 1').index).astype('int')
+    #geo1_ind = (events.query('dst < -100').index).astype('int')
+    geo1_ind = [11731]
     
-    for g in geo1_ind[-14:-1]:
+    for g in geo1_ind:
            
         #format times
         st = datetime.strptime(str(events.start.iloc[g]), "%Y-%m-%d %H:%M:%S") - timedelta(seconds = time_before*60*60)
         et= datetime.strptime(str(events.end.iloc[g]), "%Y-%m-%d %H:%M:%S") + timedelta(seconds = 3*60*60)
-                
+        
         #format time strings
         stf = datetime.strftime(st, "%Y-%m-%d")
         etf = datetime.strftime(et, "%Y-%m-%d")
+        
                 
         #print("Start date: " + stf )
         #print("End date  : " + etf + "\n")   
@@ -88,8 +95,8 @@ def main():
         
         evtfname = datetime.strftime(events_time_frac_ss.start.iloc[0], "%Y%m%d_%H%M") 
         print("\n event: %s \n" % evtfname)
-        if not os.path.isdir("case_studies/goodmc/"+evtfname):
-            os.makedirs("case_studies/goodmc/"+evtfname)
+        if not os.path.isdir("case_studies/dst100/"+evtfname):
+            os.makedirs("case_studies/dst100/"+evtfname)
         
         #print(events_time_frac_ss[["evt_index","start","frac_start","bzm_predicted"]])
                     
@@ -133,13 +140,15 @@ def main():
                        Pdict2, \
                        et, line=line1, line2=line2, bars = evt_times, \
                        plt_outfile = evtfname+"_"+str(i).zfill(3)+".pdf",\
-                       plt_outpath = "case_studies/goodmc/"+evtfname+"/")
+                       plt_outpath = "case_studies/dst100/"+evtfname+"/")
         
         print("done evt")
 
                     
     #return data, data_mag, data_sw
     return events_time_frac_ss
+
+
 
 def mcmock_plot(data, events_time_frac, dst_data, kp_data, Pdict, et, line=[], line2=[], bars = [],\
             plot_fit = 1, dst_thresh = -80, kp_thresh = 6, \
@@ -198,52 +207,69 @@ def mcmock_plot(data, events_time_frac, dst_data, kp_data, Pdict, et, line=[], l
     first_evt_index = int(events_time_frac.index[0])
     #print("first ind %i " % first_evt_index)
     curr_ind = events_time_frac[events_time_frac.frac_start <= data.date.iloc[-1]].index.astype('int').max() - first_evt_index
+    
     #print("curr ind %i " % curr_ind)
     pred_dur_curr = events_time_frac['tau_predicted'].iloc[curr_ind] * 60. 
     pred_bz_curr = events_time_frac['bzm_predicted'].iloc[curr_ind]
     end_time_curr = events_time_frac['frac_start'].iloc[curr_ind] + timedelta(seconds = pred_dur_curr*60.)
+    
+    P1_curr = events_time_frac['P1'].iloc[curr_ind]
+    
+    true_dur_curr = events_time_frac['tau'].iloc[curr_ind] * 60. 
+    true_bz_curr = events_time_frac['bzm'].iloc[curr_ind]
+    true_dst = events_time_frac['dst'].iloc[curr_ind]
 
-    ##probs
-    
-    indt = []
-    indb = []
-    
-    #print(curr_ind)
-    if curr_ind == 0:
-        est_frac = events_time_frac['frac_est'].iloc[0]
-        pred_dur = events_time_frac['tau_predicted'].iloc[0]
-        pred_bz = events_time_frac['bzm_predicted'].iloc[0]
-        indt.append(np.min(np.where(Pdict["indices"][3,:] > pred_dur))) 
-        indb.append(np.max(np.where(Pdict["indices"][2,:] < pred_bz)))
-        #if est_frac < 0.2=:
-        P0 = Pdict["prob_e"][indb, indt,0]
-        
-        #print("indexes")
-        #print(indb)
-        #print(indt)
-    else:
-        est_frac = events_time_frac['frac_est'].iloc[0:curr_ind]
-        pred_dur = events_time_frac['tau_predicted'].iloc[0:curr_ind]
-        pred_bz = events_time_frac['bzm_predicted'].iloc[0:curr_ind]
-        
-        #print(len(pred_dur))
-        for i in range(len(pred_dur)):
-            #print(pred_dur[i])
-            #print(pred_bz[i])
-            #print(i)
-            indt.append(np.min(np.where(Pdict["indices"][3,:] > pred_dur[i])))
-            indb.append(np.max(np.where(Pdict["indices"][2,:] < pred_bz[i])))
-        
-            #print(indb)
-            #print(indt)
-            #indt = [ np.min(np.where(Pdict["indices"][3,:] > pd)) for pd in pred_dur.values] 
-            #indb = [ np.max(np.where(Pdict["indices"][2,:] < pbz)) for pbz in pred_bz.values]
-            #print("indexes")
-            #print(indt)
-            #print(indb)
-        #if est_frac < 0.2=:
-        P0 = Pdict["prob_e"][indb, indt,0]
-        
+#==============================================================================
+#     ##probs
+#     
+#     indt = []
+#     indb = []
+#     
+#     #print(curr_ind)
+#     if curr_ind == 0:
+#         est_frac = events_time_frac['frac_est'].iloc[0]
+#         pred_dur = events_time_frac['tau_predicted'].iloc[0]
+#         pred_bz = events_time_frac['bzm_predicted'].iloc[0]
+#         indt.append(np.min(np.where(Pdict["indices"][3,:] > pred_dur))) 
+#         indb.append(np.max(np.where(Pdict["indices"][2,:] < pred_bz)))
+#         #if est_frac < 0.2=:
+#         P0 = Pdict["prob_e"][indb, indt,0]
+#         
+#         #print("indexes")
+#         #print(indb)
+#         #print(indt)
+#     else:
+#         est_frac = events_time_frac['frac_est'].iloc[0:curr_ind]
+#         pred_dur = events_time_frac['tau_predicted'].iloc[0:curr_ind]
+#         pred_bz = events_time_frac['bzm_predicted'].iloc[0:curr_ind]
+#         
+#         #print(len(pred_dur))
+#         for i in range(len(pred_dur)):
+#             #print(pred_dur[i])
+#             #print(pred_bz[i])
+#             #print(i)
+#             
+#             if pred_dur[i] > Pdict["axis_vals"][3,-1]:
+#                 indt.append(len(Pdict["axis_vals"][3,:])-1)
+#                 indb.append(np.max(np.where(Pdict["indices"][2,:] < pred_bz[i])))
+#             else:
+#                 indt.append(np.min(np.where(Pdict["indices"][3,:] > pred_dur[i])))
+#                 indb.append(np.max(np.where(Pdict["indices"][2,:] < pred_bz[i])))
+#         
+#             #print(indb)
+#             #print(indt)
+#             #indt = [ np.min(np.where(Pdict["indices"][3,:] > pd)) for pd in pred_dur.values] 
+#             #indb = [ np.max(np.where(Pdict["indices"][2,:] < pbz)) for pbz in pred_bz.values]
+#             #print("indexes")
+#             #print(indt)
+#             #print(indb)
+#         #if est_frac < 0.2=:
+#         P0 = Pdict["prob_e"][indb, indt,0]
+#         
+#     print("P0")
+#     print(P0)
+#     print("\n")
+#==============================================================================
 
     #print("est_frac")
     #print(est_frac)
@@ -280,13 +306,17 @@ def mcmock_plot(data, events_time_frac, dst_data, kp_data, Pdict, et, line=[], l
     plt.gcf().text(0.8, vv-0.26, 'Max |Bz|: %.2f (nT)' % pred_bz_curr, fontsize=fs)
     plt.gcf().text(0.8, vv-0.28, 'Duration: %.2f (hrs)' % (pred_dur_curr/60.), fontsize=fs) 
     plt.gcf().text(0.8, vv-0.30, 'End Time: %s' % datetime.strftime(end_time_curr, "%d-%b %H:%M:%S"), fontsize=fs)
-        
-    vv2 = 0.24
+    
+    plt.gcf().text(0.8, vv-0.34, 'True Params', fontsize=fs)
+    plt.gcf().text(0.8, vv-0.36, 'Max |Bz|: %.2f (nT)' % true_bz_curr, fontsize=fs)
+    plt.gcf().text(0.8, vv-0.38, 'Duration: %.2f (hrs)' % (true_dur_curr/60.), fontsize=fs) 
+    plt.gcf().text(0.8, vv-0.40, 'Dst: %i' % true_dst, fontsize=fs) 
+    
+    vv2 = 0.20
     plt.gcf().text(0.8, vv2, 'Geoeffective Storm Probability', fontsize=fs)
-    plt.gcf().text(0.8, vv2-0.02, 'P0:     %.4f (percent)' % P0[-1] , fontsize=fs)
-    plt.gcf().text(0.8, vv2-0.04, 'P1:     XXX' , fontsize=fs)
-    plt.gcf().text(0.8, vv2-0.06, 'P2:     XXX' , fontsize=fs)
-    plt.gcf().text(0.8, vv2-0.08, 'P3:     XXX' , fontsize=fs)
+    plt.gcf().text(0.8, vv2-0.02, 'P1:     %.4f (percent)' % P1_curr , fontsize=fs)
+    plt.gcf().text(0.8, vv2-0.04, 'P2:     XXX' , fontsize=fs)
+    plt.gcf().text(0.8, vv2-0.06, 'P3:     XXX' , fontsize=fs)
     
     
     gs1 = GridSpec(7, 1)
@@ -306,7 +336,7 @@ def mcmock_plot(data, events_time_frac, dst_data, kp_data, Pdict, et, line=[], l
     ax22 = plt.subplot(gs2[:,2])
     
     gs3 = GridSpec(1, 1)
-    gs3.update(top=0.6, bottom=0.25, left = 0.8, right = 0.95)    
+    gs3.update(top=0.5, bottom=0.15, left = 0.8, right = 0.95)    
     ax000 = plt.subplot(gs3[:,0])
 
     plt.subplots_adjust(hspace = .1)       # no vertical space between subplots
@@ -514,14 +544,23 @@ def mcmock_plot(data, events_time_frac, dst_data, kp_data, Pdict, et, line=[], l
     curr_evt = events_time_frac['evt_index'].iloc[curr_ind] 
     #first_evt_index = int(events_time_frac.query('evt_index == '+str(curr_evt) ).index[0])
     
-    if curr_ind == 0:
-        frac_time = [events_time_frac.frac_start.iloc[0]]
-        frac_bz_pred = [events_time_frac.bzm_predicted.iloc[0]]
-        frac_tau_pred = [events_time_frac.tau_predicted.iloc[0]]
-    else:
-        frac_time = events_time_frac.frac_start.iloc[0:curr_ind]
-        frac_bz_pred = events_time_frac.bzm_predicted.iloc[0:curr_ind]
-        frac_tau_pred = events_time_frac.tau_predicted.iloc[0:curr_ind]
+
+    
+#==============================================================================
+#     if curr_ind == 0:
+#         frac_time = [events_time_frac.frac_start.iloc[0]]
+#         frac_bz_pred = [events_time_frac.bzm_predicted.iloc[0]]
+#         frac_tau_pred = [events_time_frac.tau_predicted.iloc[0]]
+#         frac_P1 = [events_time_frac.P1.iloc[0]]
+#     else:
+#==============================================================================
+    frac_time = events_time_frac.frac_end.iloc[0:curr_ind+1]
+    frac_bz_pred = events_time_frac.bzm_predicted.iloc[0:curr_ind+1]
+    frac_tau_pred = events_time_frac.tau_predicted.iloc[0:curr_ind+1]
+    frac_P1 = events_time_frac.P1.iloc[0:curr_ind+1]
+    
+    #print(curr_ind, frac_time, frac_bz_pred, frac_tau_pred, frac_P1)
+    #print("\n")
     
     myFmt = mdates.DateFormatter('%H:%M')
     
@@ -558,7 +597,7 @@ def mcmock_plot(data, events_time_frac, dst_data, kp_data, Pdict, et, line=[], l
     
     #----Bz pred
     #ax22.axis('off')
-    ax22.plot(frac_time, P0, c='orange', label='n ($\mathrm{cm^-3}$)')
+    ax22.plot(frac_time, frac_P1, c='orange', label='n ($\mathrm{cm^-3}$)')
     #ax22.set_ylabel('Bz pred ($\mathrm{cm^-3}$)')
     ax22.set_title('Prob Geoeff (P0 %)', fontsize=8)
     ax22.tick_params(labelsize=8)

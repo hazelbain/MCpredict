@@ -517,6 +517,20 @@ def kfold(events_time_frac):
     from sklearn.utils import shuffle
     
     
+    events_time_frac = pickle.load(open("train/events_time_frac_fitall3_train_dst80_kp6_clean2.p","rb"))
+        
+    #event indices for icme sheath, icme or icme-icme interactions that dont' have any MC 
+    icme_evt_id = [1352,5562,4887,2721,2075,2732,432,4227,10894,713,3285,2597,11729,1441,1905]
+    for id in icme_evt_id:
+        criteria = 'evt_index == '+str(id)
+        events_time_frac.loc[events_time_frac.eval(criteria), 'geoeff'] = 3
+        
+    #add the extra few mcs
+    mc_evt_id = [14992,4076]
+    for id in mc_evt_id:
+        criteria = 'evt_index == '+str(id)
+        events_time_frac.loc[events_time_frac.eval(criteria), 'geoeff'] = 1
+    
     events_ss = events_time_frac.query('(geoeff == 1 or geoeff ==0) and frac_est > 0.2')
 
     #shuffle the events so they are not organized by date
@@ -546,16 +560,19 @@ def kfold(events_time_frac):
    
     
     
-    ranges=[-150,150,-150,150]
+    ranges=[-100,100,-150,150]
     nbins=[30,60]
     fracs = [0.2,1.0]
 
-    #pdf.create_pdfs(X_events_train0, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_ss0')
+    #pdf.create_pdfs(X_events_train0, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_100_150_30i_ss0')
     
-    #pdf.create_pdfs(X_events_train1, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_ss1')
+    #pdf.create_pdfs(X_events_train1, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_100_150_30i_ss1')
 
-    pdf.create_pdfs(X_events_train2, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_ss2')
-        
+    #pdf.create_pdfs(X_events_train2, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_100_150_30i_ss2')
+    
+    Pdict = pdf.create_pdfs(events_ss, ranges=ranges, nbins=nbins, fracs = [0.2,1.0], fname='events_time_frac_fitall3_train_dst80_kp6_clean2_100_150_30i')
+    
+    
     
     
     
